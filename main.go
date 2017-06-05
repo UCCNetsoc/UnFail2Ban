@@ -7,6 +7,7 @@ import (
 	"os"
 	"flag"
 	"log"
+	"net"
 )
 
 var jail string
@@ -53,13 +54,15 @@ func prepare(s []string) ([][]string, int){
 }
 
 func website(w http.ResponseWriter, r *http.Request){
+	host, _, err := net.SplitHostPort(r.Host); if err != nil { error.Println(err.Error()) }
+
 	page := `<!doctype html>
 			<html lang="en">
 				<head>
 					<meta charset="utf-8">
 					<title>UnFail2Ban</title>
-					<link rel="stylesheet" href="http://127.0.0.1/styles.css">
-					<script src="http://127.0.0.1/delete.js"></script>
+					<link rel="stylesheet" href="http://`+host+`/styles.css">
+					<script src="http://`+host+`/delete.js"></script>
 				</head>
 				<body>
 					<div id='container'>
@@ -80,7 +83,6 @@ func unban(w http.ResponseWriter, r *http.Request){
 	// out, err := result.Output(); if err != nil { fmt.Println(err.Error()); return }
 	// fmt.Println(err.Error(), out)
 	w.Write([]byte(renderTable()))
-
 	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
 	return
 }
