@@ -116,7 +116,7 @@ body > #container > div {
 
 html {
   height: 95%;
-  /*background: url("http://orig15.deviantart.net/c998/f/2013/335/4/a/magnemite_wireframe_gif_by_yoshidashte-d6wdsd9.gif");*/
+  background: url("bg.gif");
   background-size: cover;
 }
 
@@ -167,6 +167,12 @@ html {
   background-image: -o-linear-gradient(top, #3cb0fd, #3498db);
   background-image: linear-gradient(to bottom, #3cb0fd, #3498db);
   text-decoration: none;
+}
+
+code {
+  background: #232323;
+  font-family: monospace,serif;
+  word-wrap: break-word;
 }
 
 

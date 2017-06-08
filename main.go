@@ -2,29 +2,36 @@ package main
 
 import (
 	"strings"
-	"net/http"
 	"fmt"
 	"os"
-	"flag"
 	"log"
 	"net"
+	"github.com/valyala/fasthttp"
+	"encoding/json"
+	"io/ioutil"
 )
 
-var jail string
-var lang string
+type Config struct {
+	Lang string `json:"lang"`
+	Jail string `json:"jail"`
+}
+
+var config = &Config{}
 var info *log.Logger
 var error *log.Logger
 
-func init(){
+/*func init(){
 	flag.StringVar(&jail, "jail", "", "Jail")
-	flag.StringVar(&lang, "lang", "en", "Language of Countries")
+	flag.StringVar(&lang, "lang", "", "Language of Countries")
 	flag.Parse()
 
 	if jail == "" {
 		fmt.Println("Fail2Ban Jail must be supplied. Example: -jail myJail")
 		os.Exit(0)
 	}
-}
+
+
+}*/
 
 func fullFatTrim(s []string) (ret []string){
 	for _,i := range s {
@@ -53,9 +60,8 @@ func prepare(s []string) ([][]string, int){
 	return m, pad
 }
 
-func website(w http.ResponseWriter, r *http.Request){
-	host, _, err := net.SplitHostPort(r.Host); if err != nil { error.Println(err.Error()) }
-
+func website(ctx *fasthttp.RequestCtx){
+	host, _, err := net.SplitHostPort(string(ctx.Host()[:]))	; if err != nil { error.Println(err.Error()) }
 	page := `<!doctype html>
 			<html lang="en">
 				<head>
@@ -67,41 +73,64 @@ func website(w http.ResponseWriter, r *http.Request){
 				<body>
 					<div id='container'>
 						<div><h1>UnFail2Ban</h1></div>
-						<div><h1><code>`+r.RemoteAddr+`</code></h1></div>
-						<div id='table'>`+renderTable()+`</div>
+						<div><h1><code>`+ctx.RemoteAddr().String()+`</code></h1></div>
+						<div id='table'>`+RenderTable()+`</div>
 						<div class='footer'><footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer></div>
 					</div>
 				</body>
 			</html>`
-
-
-	w.Write([]byte(page))
+	ctx.SetContentType("text/html")
+	ctx.SetBody([]byte(page))
+	ctx.PostBody()
 }
 
-func unban(w http.ResponseWriter, r *http.Request){
+func unban(ctx *fasthttp.RequestCtx){
+	//Uncomment the following lines for live
 	// result := exec.Command("sudo", "fail2ban-client", "set", jail, "unbanip", r.URL.Query()["ip"][0])
 	// out, err := result.Output(); if err != nil { fmt.Println(err.Error()); return }
 	// fmt.Println(err.Error(), out)
-	w.Write([]byte(renderTable()))
-	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
+	ctx.Write([]byte(RenderTable()))
+	
+	//info.Println("IP Address", ctx.URI.Query()["ip"][0], "has been shown mercy")
 	return
 }
 
+func loadConfig(){
+	confRead, err := ioutil.ReadFile("unf2b.json")
+	if err != nil { 
+		error.Fatalln("Error reading config file:", err.Error())
+	}
+	
+	err = json.Unmarshal(confRead, config)
+	if err != nil {
+		error.Fatalln("Error unmarshalling config:", err.Error())
+	}
+}
+
 func main(){
-	http.HandleFunc("/list", website)
-	http.HandleFunc("/unban", unban)
+	requestHandler := func(ctx *fasthttp.RequestCtx) {
+		switch string(ctx.Path()) {
+		case "/list":
+			website(ctx)
+		case "/unban":
+			unban(ctx)
+		default:
+			ctx.Error("Unsupported path", fasthttp.StatusNotFound)
+		}
+	}
 
-	f, err := os.OpenFile("unf2b.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); if err != nil { fmt.Println(err.Error()) }
-	defer f.Close()
+	logF, err := os.OpenFile("unf2b.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); if err != nil { fmt.Println(err.Error()); }
+	defer logF.Close()
 
-	log.SetOutput(f)
+	log.SetOutput(logF)
 
-	info  = log.New(f, "INFO: ", log.Ldate | log.Ltime)
-	error = log.New(f, "ERROR: ", log.Ldate | log.Ltime)
+	info  = log.New(logF, "INFO: ", log.Ldate | log.Ltime)
+	error = log.New(logF, "ERROR: ", log.Ldate | log.Ltime)
 
-	info.Println("Initializing server. Fail2Ban jail set to `"+jail+"`")
+	loadConfig()
 
+	info.Println("Initializing server. Fail2Ban jail set to `"+config.Jail+"`")
 	fmt.Println("Server started..")
 
-	err = http.ListenAndServe(":8080", nil); if err != nil { fmt.Println(err.Error()) }
+	err = fasthttp.ListenAndServe(":8080", requestHandler)
 }
