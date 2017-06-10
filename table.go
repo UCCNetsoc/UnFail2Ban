@@ -13,7 +13,7 @@ import (
 // Fail2Ban jail specified by the command line argument -jail
 func RenderTable() (table string) {
 	
-	search := "Chain f2b-"+config.Jail+" (1 references)\n"
+	search := "Chain f2b-"+conf.Jail+" (1 references)\n"
 	//Uncomment the next line for live
 	//out, _ := exec.Command("iptables", "-L", "-n").Output()
 	//Uncomment the following for testing
@@ -58,7 +58,7 @@ func RenderTable() (table string) {
 			if err != nil {
 				error.Println(err.Error())
 			}
-			table += "<td>"+record.Country.Names[config.Lang]+", "+record.City.Names[config.Lang]+"</td>"
+			table += "<td>"+record.Country.Names[conf.Lang]+", "+record.City.Names[conf.Lang]+"</td>"
 			table += "</tr>"
 		}
 	}

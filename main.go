@@ -11,12 +11,13 @@ import (
 	"io/ioutil"
 )
 
-type Config struct {
+type config struct {
 	Lang string `json:"lang"`
 	Jail string `json:"jail"`
+	DN   string `json:"DN"`
 }
 
-var config = &Config{}
+var conf = &config{}
 var info *log.Logger
 var error *log.Logger
 
@@ -61,7 +62,7 @@ func prepare(s []string) ([][]string, int){
 }
 
 func website(ctx *fasthttp.RequestCtx){
-	host, _, err := net.SplitHostPort(string(ctx.Host()[:]))	; if err != nil { error.Println(err.Error()) }
+	host, _, err := net.SplitHostPort(string(ctx.Host()[:])); if err != nil { error.Println(err.Error()) }
 	page := `<!doctype html>
 			<html lang="en">
 				<head>
@@ -86,12 +87,12 @@ func website(ctx *fasthttp.RequestCtx){
 
 func unban(ctx *fasthttp.RequestCtx){
 	//Uncomment the following lines for live
-	// result := exec.Command("sudo", "fail2ban-client", "set", jail, "unbanip", r.URL.Query()["ip"][0])
+	// result := exec.Command("sudo", "fail2ban-client", "set", jail, "unbanip", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="))
 	// out, err := result.Output(); if err != nil { fmt.Println(err.Error()); return }
 	// fmt.Println(err.Error(), out)
 	ctx.Write([]byte(RenderTable()))
-	
-	//info.Println("IP Address", ctx.URI.Query()["ip"][0], "has been shown mercy")
+
+	info.Println("IP Address", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="), "has been shown mercy")
 	return
 }
 
@@ -101,7 +102,7 @@ func loadConfig(){
 		error.Fatalln("Error reading config file:", err.Error())
 	}
 	
-	err = json.Unmarshal(confRead, config)
+	err = json.Unmarshal(confRead, conf)
 	if err != nil {
 		error.Fatalln("Error unmarshalling config:", err.Error())
 	}
@@ -129,7 +130,7 @@ func main(){
 
 	loadConfig()
 
-	info.Println("Initializing server. Fail2Ban jail set to `"+config.Jail+"`")
+	info.Println("Initializing server. Fail2Ban jail set to `"+conf.Jail+"`")
 	fmt.Println("Server started..")
 
 	err = fasthttp.ListenAndServe(":8080", requestHandler)

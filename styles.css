@@ -121,12 +121,24 @@ html {
 }
 
 .footer {
-   position:absolute;
+   background: rgba(255,255,255,0.7);
+   text-align: center;
+   /*position:absolute;*/
    bottom:0;
    width: 100%;
-   height: 2em;   /* Height of the footer */
-   margin: 2em 0 0 0 !important;
-   padding: 0 !important;
+   /*height: 2em;    Height of the footer */
+   margin: 2em auto 0 auto !important;
+   padding: 0.5em !important;
+   border: 5px solid #C6D1D3;
+   border-radius: 0.2em;
+   max-width: 50%;
+   left:0;
+   right:0;
+}
+
+footer {
+  text-align: center;
+  margin: 0 auto;
 }
 
 #container {
@@ -136,11 +148,12 @@ html {
 }
 
 #table {
+  position: relative;
   padding-bottom: 2em;
 }
 
 #submit {
-  width: 10%;
+  /*width: 10%;*/
   margin: auto;
   display: block;
   -webkit-border-radius: 6;
@@ -170,7 +183,7 @@ html {
 }
 
 code {
-  background: #232323;
+  /*background: #232323;*/
   font-family: monospace,serif;
   word-wrap: break-word;
 }
