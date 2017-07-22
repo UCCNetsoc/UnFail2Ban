@@ -11,4 +11,4 @@ Fallback will be implemented later
 
 ![Screenshot](http://strum355.netsoc.co/public_images/fail2ban.png)
 
-![Another screenshot](http://strum355.netsoc.co/public_images/f2b_2.png)
+![Screenshot1](http://strum355.netsoc.co/public_images/fail2ban2.png)
