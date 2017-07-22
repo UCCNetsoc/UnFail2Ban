@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -56,29 +57,33 @@ func prepare(s []string) ([][]string, int) {
 	return m, pad
 }
 
-func website(ctx *fasthttp.RequestCtx) {
+func pageMarkup(body, host, yourIP, script string) string {
+	return `<!doctype html>
+			<html lang="en">
+				<head>
+					<meta charset="utf-8">
+					<title>UnFail2Ban</title>
+					<link rel="stylesheet" href="http://` + host + `/UFail2Ban/styles.css">` + script +
+		`<meta name="viewport" content="initial-scale=1.0, width=device-width" />
+				</head>
+				<body>
+					<div id='container'>
+						<header><h1>UnFail2Ban</h1></header>
+						<div><h1><code> Your IP: ` + yourIP + `</code></h1></div>
+						` + body + `</div>
+						<div class='footer'><footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer></div>
+					</div>
+				</body>
+			</html>`
+}
+
+func list(ctx *fasthttp.RequestCtx) {
 	host, _, err := net.SplitHostPort(string(ctx.Host()[:]))
 	if err != nil {
 		errorLog.Println(err.Error())
 	}
 
-	page := `<!doctype html>
-			<html lang="en">
-				<head>
-					<meta charset="utf-8">
-					<title>UnFail2Ban</title>
-					<link rel="stylesheet" href="http://` + host + `/styles.css">
-					<script src="http://` + host + `/delete.js"></script>
-				</head>
-				<body>
-					<div id='container'>
-						<header><h1>UnFail2Ban</h1></header>
-						<div><h1><code> Your IP: ` + ctx.RemoteAddr().String() + `</code></h1></div>
-						<div id='table'>` + renderTable() + `</div>
-						<div class='footer'><footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer></div>
-					</div>
-				</body>
-			</html>`
+	page := pageMarkup("<div id='table'>"+renderTable(), host, ctx.RemoteAddr().String(), "<script src='http://"+host+"/UFail2Ban/delete.js'></script>")
 
 	ctx.SetContentType("text/html")
 	ctx.SetBody([]byte(page))
@@ -87,12 +92,12 @@ func website(ctx *fasthttp.RequestCtx) {
 
 func unban(ctx *fasthttp.RequestCtx) {
 	//Uncomment the following lines for live
-	/*  result := exec.Command("sudo", "fail2ban-client", "set", jail, "unbanip", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="))
-	 out, err := result.Output()
+	result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="))
+	_, err := result.Output()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
-	} */
+	}
 	ctx.Write([]byte(renderTable()))
 
 	info.Println("IP Address", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="), "has been shown mercy")
@@ -122,6 +127,61 @@ func setLog() *os.File {
 	return logF
 }
 
+func f2bLog(ctx *fasthttp.RequestCtx) {
+	host, _, err := net.SplitHostPort(string(ctx.Host()[:]))
+	if err != nil {
+		errorLog.Println(err.Error())
+	}
+
+	page := pageMarkup("<div id='log'>", host, ctx.RemoteAddr().String(), "<script src='http://"+host+"/UFail2Ban/poll.js'></script>")
+	ctx.SetContentType("text/html")
+	ctx.SetBody([]byte(page))
+	ctx.PostBody()
+}
+
+func reverse(numbers []string) []string {
+	for i := 0; i < len(numbers)/2; i++ {
+		j := len(numbers) - i - 1
+		numbers[i], numbers[j] = numbers[j], numbers[i]
+	}
+	return numbers
+}
+
+func poll(ctx *fasthttp.RequestCtx) {
+	lastDate := strings.TrimSuffix(strings.TrimPrefix(string(ctx.FormValue("date")), "\""), "\"")
+
+	f, err := os.Open("/var/log/fail2ban.log")
+	if err != nil {
+		ctx.Write([]byte{})
+		errorLog.Println(err)
+		return
+	}
+	defer f.Close()
+
+	newLogText, err := ioutil.ReadAll(f)
+	if err != nil {
+		ctx.Write([]byte{})
+		errorLog.Println(err)
+		return
+	}
+
+	var toSend []string
+	splitLog := strings.Split(string(newLogText), "\n")
+
+	if lastDate != "undefined" {
+		for i, line := range splitLog {
+			if strings.Contains(line, string(lastDate)) {
+				toSend = append(toSend, splitLog[i+1:]...)
+				break
+			}
+		}
+	} else {
+		toSend = splitLog
+	}
+
+	ctx.Write([]byte(strings.Join(toSend, "\n")))
+}
+
 func main() {
 	logFile := setLog()
 	defer logF.Close()
@@ -137,9 +197,13 @@ func main() {
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
 		switch string(ctx.Path()) {
 		case "/list":
-			website(ctx)
+			list(ctx)
 		case "/unban":
 			unban(ctx)
+		case "/log":
+			f2bLog(ctx)
+		case "/poll":
+			poll(ctx)
 		default:
 			ctx.Error("Unsupported path", fasthttp.StatusNotFound)
 		}
@@ -152,8 +216,5 @@ func main() {
 
 	fmt.Println("Server started..")
 
-	err := fasthttp.ListenAndServe(":"+conf.Port, requestHandler)
-	if err != nil {
-		errorLog.Fatalln(err)
-	}
+	errorLog.Fatalln(fasthttp.ListenAndServe(":"+conf.Port, requestHandler))
 }

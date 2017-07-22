@@ -1,12 +1,22 @@
 package main
 
 import (
-	"github.com/oschwald/geoip2-golang"
+	"encoding/json"
 	"io/ioutil"
-	"net"
-	"os"
+	"net/http"
+	"os/exec"
+	//"os"
 	"strings"
 )
+
+type ipInfo struct {
+	City     string `json:"city"`
+	Country  string `json:"country"`
+	Region   string `json:"region"`
+	Coord    string `json:"loc"`
+	Org      string `json:"org"`
+	Hostname string `json:"hostname"`
+}
 
 // RenderTable generates the HTML table that shows all the entries in the
 // Fail2Ban jail specified by the command line argument -jail
@@ -14,53 +24,67 @@ func renderTable() (table string) {
 
 	search := "Chain f2b-" + conf.Jail + " (1 references)\n"
 	//Uncomment the next line for live
-	//out, _ := exec.Command("iptables", "-L", "-n").Output()
+	out, _ := exec.Command("iptables", "-L", "-n").Output()
 	//Uncomment the following for testing
-	i, _ := os.Open("out.txt")
+/* 	i, _ := os.Open("out.txt")
 	defer i.Close()
-	out, _ := ioutil.ReadAll(i)
+	out, _ := ioutil.ReadAll(i) */
 
 	place := strings.Index(string(out[:]), search)
 	cut := out[place+len(search):]
 	sep := strings.Split(string(cut[:len(cut)-1]), "\n")[1:]
 	ret, pad := prepare(sep)
 
-	db, err := geoip2.Open("GeoLite2-City.mmdb")
-	if err != nil {
-		errorLog.Println("Open GeoLite2-City.mmdb error")
-		return "<p class='error'>Error. Please contact your Sys Admin or read the error log if you are one.</p><code class='error'>" + err.Error() + "</code>"
-	}
-	defer db.Close()
-
 	table = `<form>
 			  <table class="responstable">
 			  	  <tr>
-					  <th>SELECT</th>
-					  <th>TARGET</th>
-					  <th>PROT</th>
-					  <th>OPT</th>
-					  <th>SOURCE</th>
-					  <th>DESTINATION</th>
-				  	  <th>COUNTRY</th>
+					<th>SELECT</th>
+					<th>TARGET</th>
+					<th>PROT</th>
+					<th>OPT</th>
+					<th>SOURCE</th>
+					<th>DESTINATION</th>
+					<th>ADDRESS</th>
+					<th>CO-ORDS</th>
+					<th>ORGANISATION</th>
+					<th>HOST NAME</th>
 				  </tr>`
 
 	//Only show IPs that are blocked
 	for i := range ret {
-		if ret[i][0] == "REJECT" {
+		if ret[i][0] == "REJECT" || ret[i][0] == "DROP" {
 			table += "<tr class='row'><td><input type='button' class='input' value='Unban'></input></td>"
 			for j := 0; j < pad; j++ {
 				table += "<td>" + ret[i][j] + "</td>"
 			}
-
-			ip := net.ParseIP(ret[i][3])
-			record, err := db.City(ip)
+			resp, err := http.Get("https://www.ipinfo.io/" + ret[i][3] + "/json")
 			if err != nil {
-				errorLog.Println(err.Error())
+				errorLog.Println(err)
+				break
+			} else if resp.StatusCode == 429 {
+				table = "<p class='error'>To many requests to https://ipinfo.io/ <br>Rate limit is 1000 requests per day. Please contact a Sys Admin about this or read the error log if you are one.</p>"
+				break
 			}
-			table += "<td>" + record.Country.Names[conf.Lang] + ", " + record.City.Names[conf.Lang] + "</td>"
+			defer resp.Body.Close()
+
+			var ipDetails ipInfo
+			ipData, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				errorLog.Println(err)
+			}
+			json.Unmarshal(ipData, &ipDetails)
+
+			ipinfo := []string{ipDetails.City, ipDetails.Region, ipDetails.Country}
+			table += "<td>" + strings.Join(ipinfo, ", ") + "</td>"
+			table += "<td>" + ipDetails.Coord + "</td>"
+			table += "<td>" + ipDetails.Org + "</td>"
+			table += "<td>" + ipDetails.Hostname + "</td>"
 			table += "</tr>"
+
+			if i == len(ret)-1 {
+				table += "</table></form>"
+			}
 		}
 	}
-	table += "</table></form>"
 	return
 }
