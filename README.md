@@ -13,8 +13,8 @@ Fallback will be implemented later
 
 # Screenshot
 
-![Screenshot](http://strum355.netsoc.co/public_images/fail2ban.png)
+![Screenshot](http://strum355.netsoc.co/public_images/fail2ban3.png)
 
 ![Screenshot1](http://strum355.netsoc.co/public_images/fail2ban1.png)
 
-![Screenshot2](http://strum355.netsoc.co/public_images/fail2ban2.png)
+![Screenshot2](http://strum355.netsoc.co/public_images/fail2ban4.png)
