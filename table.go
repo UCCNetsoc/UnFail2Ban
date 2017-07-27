@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
-	//"os"
 	"strings"
 )
 
@@ -23,12 +23,15 @@ type ipInfo struct {
 func renderTable() (table string) {
 
 	search := "Chain f2b-" + conf.Jail + " (1 references)\n"
-	//Uncomment the next line for live
-	out, _ := exec.Command("iptables", "-L", "-n").Output()
-	//Uncomment the following for testing
-/* 	i, _ := os.Open("out.txt")
-	defer i.Close()
-	out, _ := ioutil.ReadAll(i) */
+
+	var out []byte
+	if !inDev {
+		out, _ = exec.Command("iptables", "-L", "-n").Output()
+	} else {
+		i, _ := os.Open("out.txt")
+		defer i.Close()
+		out, _ = ioutil.ReadAll(i)
+	}
 
 	place := strings.Index(string(out[:]), search)
 	cut := out[place+len(search):]
@@ -79,12 +82,10 @@ func renderTable() (table string) {
 			table += "<td>" + ipDetails.Coord + "</td>"
 			table += "<td>" + ipDetails.Org + "</td>"
 			table += "<td>" + ipDetails.Hostname + "</td>"
-			table += "</tr>"
+			table += "</tr>" 
 
-			if i == len(ret)-1 {
-				table += "</table></form>"
-			}
 		}
 	}
+	table += "</table></form>"
 	return
 }

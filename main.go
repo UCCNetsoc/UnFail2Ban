@@ -3,17 +3,16 @@ package main
 import (
 	"fmt"
 	"github.com/BurntSushi/toml"
-	"github.com/valyala/fasthttp"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
-	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 )
 
 type config struct {
-	Lang string `toml:"lang"`
 	Jail string `toml:"jail"`
 	DN   string `toml:"DN"`
 	Port string `toml:"port"`
@@ -26,6 +25,8 @@ var (
 	info     *log.Logger
 	errorLog *log.Logger
 	logF     *os.File
+
+	inDev = true
 )
 
 func fullFatTrim(s []string) (ret []string) {
@@ -57,50 +58,60 @@ func prepare(s []string) ([][]string, int) {
 	return m, pad
 }
 
-func pageMarkup(body, host, yourIP, script string) string {
-	return `<!doctype html>
-			<html lang="en">
-				<head>
-					<meta charset="utf-8">
-					<title>UnFail2Ban</title>
-					<link rel="stylesheet" href="http://` + host + `/UFail2Ban/styles.css">` + script +
+func pageMarkup(body, script string, r *http.Request) string {
+	showIP := "<div id='ip'><h2><code> Your IP: " + r.RemoteAddr + "</code></h2></div>"
+
+	return `
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>UnFail2Ban</title>
+		<link rel="stylesheet" href="http://localhost/UFail2Ban/styles.css">` +
+		script +
 		`<meta name="viewport" content="initial-scale=1.0, width=device-width" />
-				</head>
-				<body>
-					<div id='container'>
-						<header><h1>UnFail2Ban</h1></header>
-						<div><h1><code> Your IP: ` + yourIP + `</code></h1></div>
-						` + body + `</div>
-						<div class='footer'><footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer></div>
-					</div>
-				</body>
-			</html>`
+	</head>
+	<body>
+		<header>
+			<span>
+				<h1>UnFail2Ban</h1>
+				<a href='/log'>Log</a>
+				<a href='/list'>List</a>
+			</span>
+			` +
+		showIP +
+		`</header>
+		<main>` +
+		body +
+		`<footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer>
+		</main>
+	</body>
+</html>`
 }
 
-func list(ctx *fasthttp.RequestCtx) {
-	host, _, err := net.SplitHostPort(string(ctx.Host()[:]))
-	if err != nil {
-		errorLog.Println(err.Error())
-	}
+func list(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
-	page := pageMarkup("<div id='table'>"+renderTable(), host, ctx.RemoteAddr().String(), "<script src='http://"+host+"/UFail2Ban/delete.js'></script>")
+	page := pageMarkup("<div id='table'>"+renderTable()+"</div>", "<script src='http://localhost/UFail2Ban/delete.js'></script>", r)
 
-	ctx.SetContentType("text/html")
-	ctx.SetBody([]byte(page))
-	ctx.PostBody()
+	fmt.Fprint(w, page)
 }
 
-func unban(ctx *fasthttp.RequestCtx) {
-	//Uncomment the following lines for live
-	result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="))
-	_, err := result.Output()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	ctx.Write([]byte(renderTable()))
+func unban(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
-	info.Println("IP Address", strings.TrimPrefix(ctx.QueryArgs().String(), "ip="), "has been shown mercy")
+	if !inDev {
+		result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", r.URL.Query()["ip"][0])
+		_, err := result.Output()
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+	}
+
+	fmt.Fprint(w, renderTable())
+
+	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
 	return
 }
 
@@ -127,16 +138,11 @@ func setLog() *os.File {
 	return logF
 }
 
-func f2bLog(ctx *fasthttp.RequestCtx) {
-	host, _, err := net.SplitHostPort(string(ctx.Host()[:]))
-	if err != nil {
-		errorLog.Println(err.Error())
-	}
+func f2bLog(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
-	page := pageMarkup("<div id='log'>", host, ctx.RemoteAddr().String(), "<script src='http://"+host+"/UFail2Ban/poll.js'></script>")
-	ctx.SetContentType("text/html")
-	ctx.SetBody([]byte(page))
-	ctx.PostBody()
+	page := pageMarkup("<div id='log'></div>", "<script src='http://localhost/UFail2Ban/poll.js'></script>", r)
+	fmt.Fprint(w, page)
 }
 
 func reverse(numbers []string) []string {
@@ -147,12 +153,13 @@ func reverse(numbers []string) []string {
 	return numbers
 }
 
-func poll(ctx *fasthttp.RequestCtx) {
-	lastDate := strings.TrimSuffix(strings.TrimPrefix(string(ctx.FormValue("date")), "\""), "\"")
+func poll(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	lastDate := strings.TrimSuffix(strings.TrimPrefix(r.URL.Query()["date"][0], "\""), "\"")
 
 	f, err := os.Open("/var/log/fail2ban.log")
 	if err != nil {
-		ctx.Write([]byte{})
+		fmt.Fprint(w)
 		errorLog.Println(err)
 		return
 	}
@@ -160,7 +167,7 @@ func poll(ctx *fasthttp.RequestCtx) {
 
 	newLogText, err := ioutil.ReadAll(f)
 	if err != nil {
-		ctx.Write([]byte{})
+		fmt.Fprint(w, "")
 		errorLog.Println(err)
 		return
 	}
@@ -179,7 +186,19 @@ func poll(ctx *fasthttp.RequestCtx) {
 		toSend = splitLog
 	}
 
-	ctx.Write([]byte(strings.Join(toSend, "\n")))
+	fmt.Fprint(w, strings.Join(toSend, "\n"))
+}
+
+func notFound(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprint(w, pageMarkup("<div style='font-size: 2em;'>404 Page doesn't exist</div>", "", r))
+}
+
+func home(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, pageMarkup("<p style='font-size: 3em'>UnFail2Ban</p><br>\n"+
+		"<p>Your one-stop web GUI for Fail2Ban administration and monitoring</p>", "", r))
 }
 
 func main() {
@@ -194,20 +213,14 @@ func main() {
 	info.Println("Starting server...")
 	info.Println("Initializing server...")
 
-	requestHandler := func(ctx *fasthttp.RequestCtx) {
-		switch string(ctx.Path()) {
-		case "/list":
-			list(ctx)
-		case "/unban":
-			unban(ctx)
-		case "/log":
-			f2bLog(ctx)
-		case "/poll":
-			poll(ctx)
-		default:
-			ctx.Error("Unsupported path", fasthttp.StatusNotFound)
-		}
-	}
+	r := mux.NewRouter()
+
+	r.HandleFunc("/home", home)
+	r.HandleFunc("/list", list)
+	r.HandleFunc("/unban", unban)
+	r.HandleFunc("/log", f2bLog)
+	r.HandleFunc("/poll", poll)
+	r.HandleFunc("/", notFound)
 
 	loadConfig()
 
@@ -216,5 +229,5 @@ func main() {
 
 	fmt.Println("Server started..")
 
-	errorLog.Fatalln(fasthttp.ListenAndServe(":"+conf.Port, requestHandler))
+	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, r))
 }

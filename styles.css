@@ -117,38 +117,6 @@ If you like this solution, you might also want to check out the 1.0 version:
   background: #1b435e;
 }
 
-body {
-  padding: 0;
-  margin: 0;
-  height: 100%;
-  font-family: Arial, sans-serif;
-  color: #024457;
-}
-
-h1 {
-  font-family: Verdana;
-  font-weight: normal;
-  color: #024457;
-}
-
-h1 span {
-  color: #167F92;
-}
-
-table {
-  background: #444;
-}
-header {
-  text-align: left;
-}
-
-header  h1 {
-  margin: 0 auto;
-  background: rgb(230,230,230);
-  padding: 0.5em 0 0.5em 3em;
-  border-bottom: 5px solid #B6C1D3;
-}
-
 html {
   height: 100%;
   margin: 0;
@@ -158,27 +126,19 @@ html {
   background-size: cover;
 }
 
-.footer {
-   background: rgb(230,230,230);
-   text-align: center;
-   margin: 10em 0 0 0;
-   bottom:0;
-   width: 100%;   
-   border-top: 5px solid #C6D1D3;
-   position: absolute;   
-   left:0;
-   right:0;
-}
-
 footer {
+  background: rgb(230,230,230);
   text-align: center;
-  margin: 0 auto;
-  padding: 0.7em 0 0.5em 0;
+  bottom:0;
+  width: 100%;   
+  padding: 0 0 0.5em 0;
+  border-top: 5px solid #C6D1D3;
+  position: absolute;   
+  left:0;
+  right:0;
 }
 
-#container {
-   min-height:100%;
-   position:relative;
+main {
    text-align: center;
 }
 
@@ -196,19 +156,70 @@ footer {
   margin: 0 auto;
 }
 
-code {
-  /*background: #232323;*/
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  color: #024457;
+}
+
+h1 {
+  font-family: Verdana;
+  font-weight: normal;
+  color: #024457;
+}
+
+table {
+  background: #444;
+}
+
+header {
+  text-align: left;
+  display: flex; 
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  background: rgb(230,230,230);
+  margin: 0 0 2em 0;
+  border-bottom: 5px solid #B6C1D3;  
+}
+
+header span {
+  padding: 0.5em 0;
+}
+
+header span h1 {
+  padding: 0 0.2em 0 3em;
+  margin: auto 0;
+  border-right: 5px solid #B6C1D3;  
+}
+
+header span * {
+  display: inline;
+}
+
+header span a {
+  text-decoration: none;
+  color: #268FA2;
+  margin: 0 1em;
+}
+
+#ip {
   font-family: monospace,serif;
   word-wrap: break-word;
-  padding: 0 1em;
-  border: 5px solid #C6D1D3;
+  padding: 0 1em 0 0;
+  margin: 0;
+}
+
+#ip h2 {
+  margin: 0;
 }
 
 #log {
   overflow: scroll;
-  height: 430px;
   margin-bottom: 2000px;
-  max-width: 90%;
   margin: -1em auto;
   border: 2px solid #333;
   background: #fff;
@@ -217,3 +228,24 @@ code {
   font-family: monospace;
   color: #222;
 }
+
+@media screen and (min-width:640px) {
+  #log {
+    max-width: 100%;
+    height: 250px;
+  }
+} 
+
+@media screen and (min-width:950px) {
+  #log {
+    max-width: 95%;
+    height: 400px;
+  }
+} 
+
+@media screen and (min-width:1200px) {
+  #log {
+    max-width: 90%;
+    height: 500px;
+  }
+} 
