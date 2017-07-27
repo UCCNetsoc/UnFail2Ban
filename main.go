@@ -74,7 +74,7 @@ func pageMarkup(body, script string, r *http.Request) string {
 	<body>
 		<header>
 			<span>
-				<h1>UnFail2Ban</h1>
+				<h1><a href='/home'>UnFail2Ban</a></h1>
 				<a href='/log'>Log</a>
 				<a href='/list'>List</a>
 			</span>

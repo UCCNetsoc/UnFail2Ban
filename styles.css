@@ -196,11 +196,20 @@ header span h1 {
   border-right: 5px solid #B6C1D3;  
 }
 
+header span h1 a{
+  color: #024457;
+  text-decoration: none;
+}
+
+header span h1 a:hover{
+  color: #327487;
+}
+
 header span * {
   display: inline;
 }
 
-header span a {
+header span > a {
   text-decoration: none;
   color: #268FA2;
   margin: 0 1em;
