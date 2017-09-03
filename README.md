@@ -1,5 +1,5 @@
 # UnFail2Ban
-Web front-end and back-end to unban those hit by Fail2Ban. Written for UCC Netsoc. Very WIP
+Web front-end and back-end to unban those hit by Fail2Ban. Written for UCC Netsoc. Very WIP. Coded by Noah Santschi-Cooney (Strum355)
 
 # Dependencies
 Needs to be able to connect to ipinfo.io
