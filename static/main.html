@@ -1,0 +1,29 @@
+{{define "layout"}}
+	<!doctype html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<title>UnFail2Ban</title>
+			<link rel="stylesheet" href="http://localhost:9999/static/styles.css">
+			<meta name="viewport" content="initial-scale=1.0, width=device-width" />
+		</head>
+		<body>
+			<header>
+				<span>
+					<h1><a href='/home'>UnFail2Ban</a></h1>
+					<a href='/log'>Log</a>
+					<a href='/list'>List</a>
+				</span>
+				<div id='ip'>
+					<h2>
+						<code>Your IP: {{.IP}} </code>
+					</h2>
+				</div>
+				</header>
+			<main>
+				{{template "body"}}
+				<footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer>
+			</main>
+		</body>
+	</html>
+{{end}}

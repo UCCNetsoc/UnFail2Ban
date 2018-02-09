@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 )
@@ -18,74 +18,89 @@ type ipInfo struct {
 	Hostname string `json:"hostname"`
 }
 
+type Row struct {
+	Data []string
+}
+
+type TableData struct {
+	NotEmpty bool
+	Rows     []Row
+}
+
 // RenderTable generates the HTML table that shows all the entries in the
 // Fail2Ban jail specified by the command line argument -jail
-func renderTable() (table string) {
-
-	search := "Chain f2b-" + conf.Jail + " (1 references)\n"
-
+func renderTable() TableData {
 	var out []byte
+	var rateLimited bool
+
 	if !inDev {
-		out, _ = exec.Command("iptables", "-L", "-n").Output()
+		out, _ = exec.Command("iptables", "-L", conf.Jail).Output()
 	} else {
-		i, _ := os.Open("out.txt")
-		defer i.Close()
-		out, _ = ioutil.ReadAll(i)
-	}
-
-	place := strings.Index(string(out[:]), search)
-	cut := out[place+len(search):]
-	sep := strings.Split(string(cut[:len(cut)-1]), "\n")[1:]
-	ret, pad := prepare(sep)
-
-	table = `<form>
-			  <table class="responstable">
-			  	  <tr>
-					<th>SELECT</th>
-					<th>TARGET</th>
-					<th>PROT</th>
-					<th>OPT</th>
-					<th>SOURCE</th>
-					<th>DESTINATION</th>
-					<th>ADDRESS</th>
-					<th>CO-ORDS</th>
-					<th>ORGANISATION</th>
-					<th>HOST NAME</th>
-				  </tr>`
-
-	//Only show IPs that are blocked
-	for i := range ret {
-		if ret[i][0] == "REJECT" || ret[i][0] == "DROP" {
-			table += "<tr class='row'><td><input type='button' class='input' value='Unban'></input></td>"
-			for j := 0; j < pad; j++ {
-				table += "<td>" + ret[i][j] + "</td>"
-			}
-			resp, err := http.Get("https://www.ipinfo.io/" + ret[i][3] + "/json")
-			if err != nil {
-				errorLog.Println(err)
-				break
-			} else if resp.StatusCode == 429 {
-				table = "<p class='error'>To many requests to https://ipinfo.io/ <br>Rate limit is 1000 requests per day. Please contact a Sys Admin about this or read the error log if you are one.</p>"
-				break
-			}
-			defer resp.Body.Close()
-
-			var ipDetails ipInfo
-			ipData, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				errorLog.Println(err)
-			}
-			json.Unmarshal(ipData, &ipDetails)
-
-			ipinfo := []string{ipDetails.City, ipDetails.Region, ipDetails.Country}
-			table += "<td>" + strings.Join(ipinfo, ", ") + "</td>"
-			table += "<td>" + ipDetails.Coord + "</td>"
-			table += "<td>" + ipDetails.Org + "</td>"
-			table += "<td>" + ipDetails.Hostname + "</td>"
-			table += "</tr>" 
-
+		var err error
+		out, err = ioutil.ReadFile("in.txt")
+		if err != nil {
+			fmt.Print(err)
 		}
 	}
-	table += "</table></form>"
-	return
+
+	rules := func() [][]string {
+		in := strings.Split(string(out), "\n")[1:]
+		out := make([][]string, len(in))
+		for i, j := range in {
+			out[i] = strings.Fields(j)
+		}
+		return out
+	}()
+
+	tableData := TableData{
+		NotEmpty: false,
+		Rows:     make([]Row, 0),
+	}
+
+	for i := range rules {
+		if rules[i][0] == "REJECT" || rules[i][0] == "DROP" {
+			var row Row
+			for j := 1; j < len(rules[i]); j++ {
+				row.Data = append(row.Data, rules[i][j])
+			}
+
+			if !rateLimited {
+				rateLimited = getIPInfo(&row, rules[i][3])
+			}
+			tableData.Rows = append(tableData.Rows, row)
+		}
+	}
+	return tableData
+}
+
+func getIPInfo(row *Row, url string) bool {
+	resp, err := http.Get("https://www.ipinfo.io/" + url + "/json")
+	if err != nil {
+		errorLog.Println(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 429 {
+		//tableData.Rows = "<p class='error'>To many requests to https://ipinfo.io/ <br>Rate limit is 1000 requests per day. Please contact a Sys Admin about this or read the error log if you are one.</p>"
+		row.Data = append(row.Data, []string{
+			"Ratelimited",
+			"By",
+			"ipinfo.io",
+			":(",
+		}...)
+		return true
+	}
+
+	var ipDetails ipInfo
+	if err := json.NewDecoder(resp.Body).Decode(&ipDetails); err != nil {
+		errorLog.Println(err)
+	}
+
+	row.Data = append(row.Data, []string{
+		fmt.Sprintf("%s %s %s", ipDetails.City, ipDetails.Region, ipDetails.Country),
+		ipDetails.Coord,
+		ipDetails.Org,
+		ipDetails.Hostname,
+	}...)
+
+	return false
 }

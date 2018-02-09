@@ -2,15 +2,13 @@
 
     document.addEventListener('DOMContentLoaded', init, false);
     
-    var buttons;
     var rows;
-    var selected;
     var tableDiv; 
     var ipAddr;
 
     function init(){
         rows = document.querySelectorAll('.row');
-        buttons = document.querySelectorAll('.input')
+        var buttons = document.querySelectorAll('.input')
         tableDiv = document.getElementById("table");
         
         for(var i = 0; i < buttons.length; i++){
@@ -32,7 +30,7 @@
             if(request.status === 200){  
                 tableDiv.innerHTML = request.responseText;
                 init()
-                window.alert("Success! "+ ipAddr  +" has been unbanned.")
+                window.alert(ipAddr  +" has been unbanned.")
             }else{
                 window.alert("Uh oh! Something didnt go right :/")
             }

@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/BurntSushi/toml"
-	"github.com/gorilla/mux"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,6 +19,11 @@ type config struct {
 	Port string `toml:"port"`
 
 	ExitIfCantLoadLog bool `toml:"exit_if_cant_load_log"`
+}
+
+type PageData struct {
+	IP   string
+	Data interface{}
 }
 
 var (
@@ -58,43 +64,27 @@ func prepare(s []string) ([][]string, int) {
 	return m, pad
 }
 
-func pageMarkup(body, script string, r *http.Request) string {
-	showIP := "<div id='ip'><h2><code> Your IP: " + r.RemoteAddr + "</code></h2></div>"
-
-	return `
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<title>UnFail2Ban</title>
-		<link rel="stylesheet" href="http://localhost/UFail2Ban/styles.css">` +
-		script +
-		`<meta name="viewport" content="initial-scale=1.0, width=device-width" />
-	</head>
-	<body>
-		<header>
-			<span>
-				<h1><a href='/home'>UnFail2Ban</a></h1>
-				<a href='/log'>Log</a>
-				<a href='/list'>List</a>
-			</span>
-			` +
-		showIP +
-		`</header>
-		<main>` +
-		body +
-		`<footer><small>Website written in Go by Noah Santschi-Cooney<br>This product includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>.</small></footer>
-		</main>
-	</body>
-</html>`
-}
-
 func list(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	//showIP := r.RemoteAddr
+	data := renderTable()
+	page := PageData{
+		IP:   r.RemoteAddr,
+		Data: data,
+	}
+	layout := filepath.Join("static", "main.html")
+	table := filepath.Join("static", "table.html")
 
-	page := pageMarkup("<div id='table'>"+renderTable()+"</div>", "<script src='http://localhost/UFail2Ban/delete.js'></script>", r)
-
-	fmt.Fprint(w, page)
+	tmpl, err := template.ParseFiles(layout, table)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = tmpl.ExecuteTemplate(w, "layout", page)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func unban(w http.ResponseWriter, r *http.Request) {
@@ -118,12 +108,12 @@ func unban(w http.ResponseWriter, r *http.Request) {
 func loadConfig() {
 	confRead, err := ioutil.ReadFile("settings.conf")
 	if err != nil {
-		errorLog.Fatalln("Error reading config file:", err.Error())
+		errorLog.Fatalln("Error reading config file:", err)
 	}
 
 	_, err = toml.Decode(string(confRead), conf)
 	if err != nil {
-		errorLog.Fatalln("Error unmarshalling config:", err.Error())
+		errorLog.Fatalln("Error unmarshalling config:", err)
 	}
 }
 
@@ -132,7 +122,7 @@ func setLog() *os.File {
 	if err != nil {
 		fmt.Println(err.Error())
 		if conf.ExitIfCantLoadLog {
-			os.Exit(2)
+			log.Fatalln("no log provided")
 		}
 	}
 	return logF
@@ -141,8 +131,8 @@ func setLog() *os.File {
 func f2bLog(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	page := pageMarkup("<div id='log'></div>", "<script src='http://localhost/UFail2Ban/poll.js'></script>", r)
-	fmt.Fprint(w, page)
+	//page := pageMarkup("<div id='log'></div>", "<script src='http://localhost/UFail2Ban/poll.js'></script>", r)
+	fmt.Fprint(w, nil)
 }
 
 func reverse(numbers []string) []string {
@@ -189,7 +179,7 @@ func poll(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, strings.Join(toSend, "\n"))
 }
 
-func notFound(w http.ResponseWriter, r *http.Request) {
+/*func notFound(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	w.WriteHeader(http.StatusNotFound)
@@ -199,7 +189,7 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 func home(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, pageMarkup("<p style='font-size: 3em'>UnFail2Ban</p><br>\n"+
 		"<p>Your one-stop web GUI for Fail2Ban administration and monitoring</p>", "", r))
-}
+} */
 
 func main() {
 	logFile := setLog()
@@ -213,14 +203,13 @@ func main() {
 	info.Println("Starting server...")
 	info.Println("Initializing server...")
 
-	r := mux.NewRouter()
-
-	r.HandleFunc("/home", home)
-	r.HandleFunc("/list", list)
-	r.HandleFunc("/unban", unban)
-	r.HandleFunc("/log", f2bLog)
-	r.HandleFunc("/poll", poll)
-	r.HandleFunc("/", notFound)
+	//http.HandleFunc("/home", home)
+	http.HandleFunc("/list", list)
+	http.HandleFunc("/unban", unban)
+	http.HandleFunc("/log", f2bLog)
+	http.HandleFunc("/poll", poll)
+	/* 	http.HandleFunc("/", notFound)
+	 */http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
 	loadConfig()
 
@@ -229,5 +218,5 @@ func main() {
 
 	fmt.Println("Server started..")
 
-	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, r))
+	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, nil))
 }
