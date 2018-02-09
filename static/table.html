@@ -1,33 +1,35 @@
 {{define "body"}}
-    {{if .NotEmpty}}
-    <div id='table'></div>
-        <script src='http://localhost/UFail2Ban/delete.js'></script>
-        <form>
-            <table class="responstable">
-                <tr>
-                    <th>SELECT</th>
-                    <th>TARGET</th>
-                    <th>PROT</th>
-                    <th>OPT</th>
-                    <th>SOURCE</th>
-                    <th>DESTINATION</th>
-                    <th>ADDRESS</th>
-                    <th>CO-ORDS</th>
-                    <th>ORGANISATION</th>
-                    <th>HOST NAME</th>
-                </tr>
-                {{range .Rows}}
-                    <tr class='row'>
-                        <td>
-                            <button class='input'>Unban</button>
-                        </td>
-                        {{range .Data}}
-                            <td>{{.}}</td>
-                        {{end}}
+    <main>
+        {{if .NotEmpty}}
+        <div id='table'>
+            <script src='http://localhost/UFail2Ban/delete.js'></script>
+            <form>
+                <table class="responstable">
+                    <tr>
+                        <th>SELECT</th>
+                        <th>TARGET</th>
+                        <th>PROT</th>
+                        <th>OPT</th>
+                        <th>SOURCE</th>
+                        <th>DESTINATION</th>
+                        <th>ADDRESS</th>
+                        <th>CO-ORDS</th>
+                        <th>ORGANISATION</th>
+                        <th>HOST NAME</th>
                     </tr>
-                {{end}}
-            </table>
-        </form>
-    </div>
-    {{end}}
+                    {{range .Rows}}
+                        <tr class='row'>
+                            <td>
+                                <button class='input'>Unban</button>
+                            </td>
+                            {{range .Data}}
+                                <td>{{.}}</td>
+                            {{end}}
+                        </tr>
+                    {{end}}
+                </table>
+            </form>
+        </div>
+        {{end}}
+    </main>
 {{end}}

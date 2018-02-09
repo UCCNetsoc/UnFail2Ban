@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -21,11 +20,6 @@ type config struct {
 	ExitIfCantLoadLog bool `toml:"exit_if_cant_load_log"`
 }
 
-type PageData struct {
-	IP   string
-	Data interface{}
-}
-
 var (
 	conf     = &config{}
 	info     *log.Logger
@@ -35,52 +29,20 @@ var (
 	inDev = true
 )
 
-func fullFatTrim(s []string) (ret []string) {
-	for _, i := range s {
-		ret = append(ret, " "+strings.Replace(i, " ", "", -1)+" ")
-	}
-	return
-}
-
-func padding(s []string, pad int, padVal string) []string {
-	if len(s) >= pad {
-		return s
-	}
-
-	c := pad - len(s)
-	for i := 0; i < c; i++ {
-		s = append(s, padVal)
-	}
-	return s
-}
-
-func prepare(s []string) ([][]string, int) {
-	var m [][]string
-	var pad = 5
-
-	for _, i := range s {
-		m = append(m, padding(strings.Fields(i), pad, ""))
-	}
-	return m, pad
-}
-
 func list(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	//showIP := r.RemoteAddr
 	data := renderTable()
-	page := PageData{
-		IP:   r.RemoteAddr,
-		Data: data,
-	}
-	layout := filepath.Join("static", "main.html")
-	table := filepath.Join("static", "table.html")
+	data.IP = r.RemoteAddr
 
-	tmpl, err := template.ParseFiles(layout, table)
+	tmpl, err := template.ParseFiles("static/main.html", "static/table.html")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	err = tmpl.ExecuteTemplate(w, "layout", page)
+
+	w.Header().Set("Content-Type", "text/html")
+	err = tmpl.ExecuteTemplate(w, "main", data)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -102,7 +64,6 @@ func unban(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, renderTable())
 
 	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
-	return
 }
 
 func loadConfig() {
@@ -179,18 +140,6 @@ func poll(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, strings.Join(toSend, "\n"))
 }
 
-/*func notFound(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	w.WriteHeader(http.StatusNotFound)
-	fmt.Fprint(w, pageMarkup("<div style='font-size: 2em;'>404 Page doesn't exist</div>", "", r))
-}
-
-func home(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, pageMarkup("<p style='font-size: 3em'>UnFail2Ban</p><br>\n"+
-		"<p>Your one-stop web GUI for Fail2Ban administration and monitoring</p>", "", r))
-} */
-
 func main() {
 	logFile := setLog()
 	defer logF.Close()
@@ -208,15 +157,14 @@ func main() {
 	http.HandleFunc("/unban", unban)
 	http.HandleFunc("/log", f2bLog)
 	http.HandleFunc("/poll", poll)
-	/* 	http.HandleFunc("/", notFound)
-	 */http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
 	loadConfig()
 
 	info.Println("Fail2Ban jail set to " + conf.Jail)
 	info.Println("Listening port set to " + conf.Port)
 
-	fmt.Println("Server started..")
+	fmt.Println("Server started..\nListening on http://127.0.0.1:" + conf.Port)
 
 	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, nil))
 }

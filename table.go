@@ -23,6 +23,7 @@ type Row struct {
 }
 
 type TableData struct {
+	IP       string
 	NotEmpty bool
 	Rows     []Row
 }
@@ -53,8 +54,7 @@ func renderTable() TableData {
 	}()
 
 	tableData := TableData{
-		NotEmpty: false,
-		Rows:     make([]Row, 0),
+		Rows: make([]Row, 0),
 	}
 
 	for i := range rules {
@@ -70,6 +70,9 @@ func renderTable() TableData {
 			tableData.Rows = append(tableData.Rows, row)
 		}
 	}
+
+	tableData.NotEmpty = len(tableData.Rows) > 0
+
 	return tableData
 }
 
