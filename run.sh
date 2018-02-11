@@ -1,0 +1,1 @@
+tsc static/ts/*.ts && go run *.go

@@ -15,7 +15,6 @@ type ipInfo struct {
 	Region   string `json:"region"`
 	Coord    string `json:"loc"`
 	Org      string `json:"org"`
-	Hostname string `json:"hostname"`
 }
 
 type Row struct {
@@ -33,9 +32,13 @@ type TableData struct {
 func renderTable() TableData {
 	var out []byte
 	var rateLimited bool
-
+	var err error
 	if !inDev {
-		out, _ = exec.Command("iptables", "-L", conf.Jail).Output()
+		out, err = exec.Command("iptables", "-L", conf.Jail).Output()
+		if err != nil {
+			errorLog.Println(err)
+			return TableData{}
+		}
 	} else {
 		var err error
 		out, err = ioutil.ReadFile("in.txt")
@@ -44,33 +47,40 @@ func renderTable() TableData {
 		}
 	}
 
-	rules := func() [][]string {
-		in := strings.Split(string(out), "\n")[1:]
-		out := make([][]string, len(in))
-		for i, j := range in {
-			out[i] = strings.Fields(j)
+	rules := func() (ret [][]string) {
+		for _, j := range strings.Split(string(out), "\n")[1:] {
+			ret = append(ret, strings.Fields(j))
 		}
-		return out
+		return
 	}()
 
-	tableData := TableData{
-		Rows: make([]Row, 0),
-	}
-
-	for i := range rules {
-		if rules[i][0] == "REJECT" || rules[i][0] == "DROP" {
-			var row Row
-			for j := 1; j < len(rules[i]); j++ {
-				row.Data = append(row.Data, rules[i][j])
-			}
-
-			if !rateLimited {
-				rateLimited = getIPInfo(&row, rules[i][3])
-			}
-			tableData.Rows = append(tableData.Rows, row)
+	rules = filter(rules, func(s string) bool {
+		if s == "REJECT" || s == "DROP" {
+			return true
 		}
-	}
+		return false
+	})
 
+	var tableData TableData
+
+	for _, rule := range rules {
+		var row Row
+		for j := 0; j < len(rule); {
+			if j == 5 {
+				row.Data = append(row.Data, strings.Join(rule[j:j+2], " "))
+				j += 2
+				continue
+			}
+			row.Data = append(row.Data, rule[j])
+			j++
+		}
+
+		if !rateLimited {
+			rateLimited = getIPInfo(&row, rule[3])
+		}
+		tableData.Rows = append(tableData.Rows, row)
+	}
+	
 	tableData.NotEmpty = len(tableData.Rows) > 0
 
 	return tableData
@@ -102,7 +112,6 @@ func getIPInfo(row *Row, url string) bool {
 		fmt.Sprintf("%s %s %s", ipDetails.City, ipDetails.Region, ipDetails.Country),
 		ipDetails.Coord,
 		ipDetails.Org,
-		ipDetails.Hostname,
 	}...)
 
 	return false

@@ -31,7 +31,6 @@ var (
 
 func list(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	//showIP := r.RemoteAddr
 	data := renderTable()
 	data.IP = r.RemoteAddr
 
@@ -51,7 +50,8 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 func unban(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-
+	fmt.Fprint(w, r.URL.Query()["ip"][0])
+	return
 	if !inDev {
 		result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", r.URL.Query()["ip"][0])
 		_, err := result.Output()
