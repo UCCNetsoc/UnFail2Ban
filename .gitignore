@@ -1,3 +1,5 @@
 settings.conf
 in.txt
 *.log
+static/js
+node_modules
