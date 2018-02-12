@@ -1,7 +1,7 @@
 (function () {
     document.addEventListener('DOMContentLoaded', init, false);
    
-    var rows: NodeListOf<HTMLElement>;
+    var rows: NodeListOf<Element>;
     var tableDiv: HTMLElement;
    
     function init() {
