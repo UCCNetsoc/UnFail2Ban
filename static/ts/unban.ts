@@ -1,18 +1,34 @@
-import * as $ from 'jquery'
+(function () {
+    document.addEventListener('DOMContentLoaded', init, false);
+   
+    var rows: NodeListOf<HTMLElement>;
+    var tableDiv: HTMLElement;
+   
+    function init() {
+        rows = document.querySelectorAll('.row');        
+        for(let e of document.querySelectorAll('.input')) {
+            e.addEventListener('click', submitted)
+        }
+        tableDiv = document.getElementById("table");
+    }
     
-$(document).ready(() => {
-    $('.input').click(() => {
-        let ipAddr  = $('.row')[$(this).parent().parent().index()].querySelectorAll('td')[4].innerHTML;
+    function submitted(event: MouseEvent) {
+        let root = event.srcElement.parentElement.parentElement as HTMLTableRowElement
+        let ipAddr = rows[root.rowIndex-1].querySelectorAll('td')[4].innerHTML;
+        
+        event.preventDefault()
+
         let request = new XMLHttpRequest();
         request.onreadystatechange = () => {
-            if(request.readyState === 4 && request.status === 200){  
-                $('table').html(request.responseText)
-                window.alert(ipAddr + ' has been unbanned.')
-            }else{
-                window.alert('Uh oh! Something didnt go right :/')
+            if (request.readyState === 4 && request.status === 200) {
+                tableDiv.innerHTML = request.responseText;
+                init();
+                window.alert(ipAddr + " has been unbanned.");
+                return
             }
-        }
-        request.open('GET', 'unban?ip='+ipAddr, true);
+            window.alert("Uh oh! Something didnt go right :/");
+        };
+        request.open('GET', 'unban?ip=' + ipAddr, true);
         request.send();
-    })
-})
+    }
+}());

@@ -3,10 +3,8 @@
     "outDir": "./static/js/",
     "sourceMap": true,
     "noImplicitAny": true,
-    "module": "commonjs",
-    "target": "es6",
-  },
-  "include": [
-    "./static/typescript/*.ts"
-  ]
+    "module": "esnext",
+    "target": "esnext",
+    "rootDir": "./static/ts/",
+  }
 }

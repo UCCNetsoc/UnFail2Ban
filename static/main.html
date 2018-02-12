@@ -4,26 +4,59 @@
 	<head>
 		<meta charset="utf-8">
 		<title>UnFail2Ban</title>
-		<link rel="stylesheet" href="http://localhost:9999/static/styles.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
 		<meta name="viewport" content="initial-scale=1.0, width=device-width" />
 	</head>
-	<body>
-		<header>
-			<span>
-				<h1><a href='/home'>UnFail2Ban</a></h1>
-				<a href='/log'>Log</a>
-				<a href='/list'>List</a>
-			</span>
-			<div id='ip'>
-				<h2>
-					<code>Your IP: {{.IP}} </code>
-				</h2>
-			</div>
-		</header>	
-		{{template "body" .}}
-		<footer>
-			<small>Website written in Go by Noah Santschi-Cooney</small>
-		</footer>
+	<body style="background: #eee">
+		<div class="navbar-fixed">
+			<nav>
+				<div class="nav-wrapper yellow darken-1" style="padding-right: 5%;padding-left: 1%">
+					<div class="brand-logo">
+						<img src="/static/images/icon.png" class="responsive-img" style="height: 65px; padding: 5px; filter: invert(1)"/>
+					</div>						
+					<a href="#" data-activates="mobile-demo" class="button-collapse"><i class="material-icons">menu</i></a>
+					<ul class="right hide-on-med-and-down">
+						<li>
+							<a class="black-text" href="https://netsoc.co/">Netsoc Home</a>
+						</li>
+						<li>
+							<a class="black-text" href="/sudo">Get Sudo</a>
+						</li>
+						<li>
+							<a class="black-text" href="/tutorials">Tutorials</a>
+						</li>
+						<li>
+							<a class="black-text" href="/tools">Admin Tools</a>
+						</li>
+						<!-- <li>
+							<a class="logout-button btn-large waves-effect waves-light purple darken-2 white-text" href="/logout">Logout</a>
+						</li> -->
+					</ul>
+	
+					<ul class="side-nav" id="mobile-demo">
+						<!-- <li>
+							<a class="logout-button btn-large waves-effect waves-light purple darken-2 white-text" href="/logout">Logout</a>
+						</li> -->
+						<li>
+							<a class="black-text" href="/tools">Admin Tools</a>
+						</li>
+						<li>
+							<a class="black-text" href="/tutorials">Tutorials</a>
+						</li>
+						<li>
+							<a class="black-text" href="/sudo">Get Sudo</a>
+						</li>
+						<li>
+							<a class="black-text" href="https://netsoc.co/">Netsoc Home</a>
+						</li>
+					</ul>
+				</div>
+			</nav>
+		</div>
+		<main class="container">
+			{{template "body" .}}
+		</main>
 	</body>
 </html>
 {{end}}
