@@ -164,7 +164,7 @@ func main() {
 	r.HandleFunc("/unban", unban)
 	r.HandleFunc("/log", f2bLog)
 	r.HandleFunc("/poll", poll)
-	//r.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	loadConfig()
 
 	info.Println("Fail2Ban jail set to " + conf.Jail)
@@ -172,5 +172,5 @@ func main() {
 
 	fmt.Println("Server started..\nListening on http://127.0.0.1:" + conf.Port)
 
-	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, nil))
+	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, r))
 }
