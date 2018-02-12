@@ -25,8 +25,6 @@ var (
 	info     *log.Logger
 	errorLog *log.Logger
 	logF     *os.File
-
-	inDev = true
 )
 
 func list(w http.ResponseWriter, r *http.Request) {
@@ -50,15 +48,12 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 func unban(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	fmt.Fprint(w, r.URL.Query()["ip"][0])
-	return
-	if !inDev {
-		result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", r.URL.Query()["ip"][0])
-		_, err := result.Output()
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
+
+	result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", r.URL.Query()["ip"][0])
+	_, err := result.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
 	}
 
 	fmt.Fprint(w, renderTable())
