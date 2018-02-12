@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/BurntSushi/toml"
+	"github.com/go-chi/chi"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -29,8 +30,13 @@ var (
 
 func list(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	data := renderTable()
-	data.IP = r.RemoteAddr
+	data := struct {
+		Data TableData
+		IP   string
+	}{
+		renderTable(),
+		r.RemoteAddr,
+	}
 
 	tmpl, err := template.ParseFiles("static/main.html", "static/table.html")
 	if err != nil {
@@ -135,6 +141,10 @@ func poll(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, strings.Join(toSend, "\n"))
 }
 
+func home(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "henlo")
+}
+
 func main() {
 	logFile := setLog()
 	defer logF.Close()
@@ -147,13 +157,14 @@ func main() {
 	info.Println("Starting server...")
 	info.Println("Initializing server...")
 
-	//http.HandleFunc("/home", home)
-	http.HandleFunc("/list", list)
-	http.HandleFunc("/unban", unban)
-	http.HandleFunc("/log", f2bLog)
-	http.HandleFunc("/poll", poll)
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	r := chi.NewRouter()
 
+	r.HandleFunc("/", home)
+	r.HandleFunc("/list", list)
+	r.HandleFunc("/unban", unban)
+	r.HandleFunc("/log", f2bLog)
+	r.HandleFunc("/poll", poll)
+	//r.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	loadConfig()
 
 	info.Println("Fail2Ban jail set to " + conf.Jail)

@@ -24,7 +24,6 @@ type Row struct {
 }
 
 type TableData struct {
-	IP       string
 	NotEmpty bool
 	Rows     []Row
 }

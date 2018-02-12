@@ -1,5 +1,4 @@
 {{define "body"}}
-    {{if .NotEmpty}}
     <div id='table' class="card" style="padding:1em; margin-top: 5em">
         <form>
             <table class="striped responsive-table">
@@ -17,21 +16,22 @@
                         <th>ORGANISATION</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {{range .Rows}}
-                        <tr class='row'>
-                            <td>
-                                <span class="input btn yellow accent-3 black-text">Unban</span>
-                            </td>
-                            {{range .Data}}
-                                <td>{{.}}</td>
-                            {{end}}
-                        </tr>
-                    {{end}}
-                </tbody>
+                {{if .NotEmpty}}
+                    <tbody>
+                        {{range .Rows}}
+                            <tr class='row'>
+                                <td>
+                                    <span class="input btn yellow accent-3 black-text">Unban</span>
+                                </td>
+                                {{range .Data}}
+                                    <td>{{.}}</td>
+                                {{end}}
+                            </tr>
+                        {{end}}
+                    </tbody>
+                {{end}}
             </table>
         </form>
         <script src='http://localhost:9999/static/js/unban.js'></script>
     </div>
-    {{end}}
 {{end}}
