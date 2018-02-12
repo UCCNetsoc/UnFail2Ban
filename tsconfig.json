@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "outDir": "./static/js/",
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "module": "esnext",
+    "target": "esnext",
+    "rootDir": "./static/ts/",
+  }
+}
