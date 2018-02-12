@@ -10,12 +10,14 @@ import (
 )
 
 type ipInfo struct {
-	City     string `json:"city"`
-	Country  string `json:"country"`
-	Region   string `json:"region"`
-	Coord    string `json:"loc"`
-	Org      string `json:"org"`
-	Hostname string `json:"hostname"`
+	Status  string  `json:"status"`
+	City    string  `json:"city"`
+	Country string  `json:"countryCode"`
+	Region  string  `json:"region"`
+	Lat     float32 `json:"lat"`
+	Lon     float32 `json:"lon"`
+	Org     string  `json:"org"`
+	Message string  `json:"message"`
 }
 
 type Row struct {
@@ -60,7 +62,7 @@ func renderTable() TableData {
 	for i := range rules {
 		if rules[i][0] == "REJECT" || rules[i][0] == "DROP" {
 			var row Row
-			for j := 1; j < len(rules[i]); j++ {
+			for j := 0; j < len(rules[i])-2; j++ {
 				row.Data = append(row.Data, rules[i][j])
 			}
 
@@ -77,7 +79,7 @@ func renderTable() TableData {
 }
 
 func getIPInfo(row *Row, url string) bool {
-	resp, err := http.Get("https://www.ipinfo.io/" + url + "/json")
+	resp, err := http.Get("http://ip-api.com/json/" + url)
 	if err != nil {
 		errorLog.Println(err)
 	}
@@ -96,13 +98,16 @@ func getIPInfo(row *Row, url string) bool {
 	var ipDetails ipInfo
 	if err := json.NewDecoder(resp.Body).Decode(&ipDetails); err != nil {
 		errorLog.Println(err)
+		return false
+	}
+	if ipDetails.Status != "success" && ipDetails.Message == "over quota" {
+		return true
 	}
 
 	row.Data = append(row.Data, []string{
 		fmt.Sprintf("%s %s %s", ipDetails.City, ipDetails.Region, ipDetails.Country),
-		ipDetails.Coord,
+		fmt.Sprintf("Lat: %f Lon: %f", ipDetails.Lat, ipDetails.Lon),
 		ipDetails.Org,
-		ipDetails.Hostname,
 	}...)
 
 	return false
