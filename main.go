@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/BurntSushi/toml"
-	"github.com/go-chi/chi"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -11,14 +9,20 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/BurntSushi/toml"
+	"github.com/go-chi/chi"
+	"gopkg.in/ldap.v2"
 )
 
 type config struct {
 	Jail string `toml:"jail"`
-	DN   string `toml:"DN"`
 	Port string `toml:"port"`
 
-	ExitIfCantLoadLog bool `toml:"exit_if_cant_load_log"`
+	LDAPKey    string `toml:"LDAP_Key"`
+	LDAPHost   string `toml:"LDAP_Host"`
+	LDAPUser   string `toml:"LDAP_User"`
+	LDAPBaseDN string `toml:"LDAP_BaseDN"`
 }
 
 var (
@@ -83,9 +87,7 @@ func setLog() *os.File {
 	logF, err := os.OpenFile("unf2b.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		fmt.Println(err.Error())
-		if conf.ExitIfCantLoadLog {
-			log.Fatalln("no log provided")
-		}
+		log.Fatalln("no log provided")
 	}
 	return logF
 }
@@ -142,7 +144,74 @@ func poll(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "henlo")
+	renderLogin(w, r, "")
+}
+
+func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
+	tmpl, err := template.ParseFiles("static/main.html", "static/form.html")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	data := struct {
+		Data string
+	}{
+		msg,
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err = tmpl.ExecuteTemplate(w, "main", data)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+
+	l, err := ldap.Dial("tcp", conf.LDAPHost)
+	if err != nil {
+		errorLog.Println(err)
+		return
+	}
+	defer l.Close()
+
+	if err = l.Bind(conf.LDAPUser, conf.LDAPKey); err != nil {
+		errorLog.Println(err)
+		return
+	}
+
+	searchRequest := ldap.NewSearchRequest(
+		conf.LDAPBaseDN,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		fmt.Sprintf("(&(objectClass=account)(uid=%s))",
+			ldap.EscapeFilter(username)),
+		[]string{},
+		nil,
+	)
+
+	sr, err := l.Search(searchRequest)
+	if err != nil {
+		errorLog.Println(err)
+		return
+	}
+
+	if len(sr.Entries) != 1 {
+		fmt.Fprint(w, "User does not exist")
+		return
+	}
+
+	if err := l.Bind(sr.Entries[0].DN, password); err != nil {
+		renderLogin(w, r, "Wrong password or username")
+		return
+	}
+	fmt.Fprint(w, "Successful login")
 }
 
 func main() {
@@ -164,6 +233,7 @@ func main() {
 	r.HandleFunc("/unban", unban)
 	r.HandleFunc("/log", f2bLog)
 	r.HandleFunc("/poll", poll)
+	r.Post("/login", login)
 	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	loadConfig()
 
