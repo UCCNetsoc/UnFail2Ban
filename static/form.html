@@ -1,0 +1,51 @@
+{{define "body"}}
+    <style>
+    .input-field input[type=text]:focus, .input-field input[type=password]:focus {
+        border-bottom: 1px solid #fdd835 !important;
+        box-shadow: 0 1px 0 0 #fdd835 !important;
+    }
+
+    .container {
+        padding: 5% 0%;
+    }
+    
+    @media only screen and (min-width: 601px) {
+        .container {
+            padding: 5% 15%;
+        }
+    }
+    </style>
+    <div class="card-panel row">
+        <img src="/static/images/banner-icon.svg" class="responsive-img">
+        <!-- Tab headers -->
+        <div class="col s12">
+            <ul class="tabs">
+                <li class="col s6 tab"><a class="active black-text" href="/login"> Log In </a></li>
+                <li class="col s6 tab"><a class="black-text" href="https://admin.netsoc.co"> Sign Up </a></li>
+                <div class="indicator yellow darken-1" style="z-index:1"></div>
+            </ul>
+        </div>
+        <div id="login" class="col l12 m12 s12">
+            <form method="POST" action="/login" class="col row s12">
+                <br>
+                <div class="row">
+                    <div class="input-field">
+                        <label for="username">Server Username</label>
+                        <input autocomplete="off" autofocus="autofocus" name="username" type="text" id="username">
+                    </div>
+                    <div class="input-field">
+                        <label for="password">Server Password</label>
+                        <input autocomplete="off" name="password" type="password" id="password">
+                    </div>
+                </div>
+                <button class="btn yellow accent-3 black-text waves-effect waves-light" type="submit">
+                    Login
+                    <i class="material-icons right"></i>
+                </button>
+            </form>
+            <div style="padding: 0 1em;" class="error-message red-text row s6">
+				<i>{{.}}</i>
+			</div>
+        </div>
+    </div>
+{{end}}
