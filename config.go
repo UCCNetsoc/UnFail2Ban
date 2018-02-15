@@ -11,8 +11,7 @@ func loadConfig() {
 		errorLog.Fatalln("Error reading config file:", err)
 	}
 
-	_, err = toml.Decode(string(confRead), conf)
-	if err != nil {
+	if _, err = toml.Decode(string(confRead), conf); err != nil {
 		errorLog.Fatalln("Error unmarshalling config:", err)
 	}
 }

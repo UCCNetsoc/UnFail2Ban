@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -32,7 +33,10 @@ func renderTable() (tableData TableData) {
 	var rateLimited bool
 
 	//TODO use fail2rest
-	chainData, err := exec.Command("sudo", "iptables", "-L", conf.Jail).Output()
+	result := exec.Command("sudo", "iptables", "-L", conf.Jail)
+	var b bytes.Buffer
+	result.Stderr = &b
+	chainData, err := result.Output()
 	if err != nil {
 		errorLog.Println("iptables error", err)
 		return

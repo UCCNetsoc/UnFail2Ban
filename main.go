@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi"
-	"gopkg.in/ldap.v2"
 )
 
 type config struct {
@@ -32,7 +32,6 @@ var (
 )
 
 func list(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	data := struct {
 		Data TableData
 		IP   string
@@ -56,29 +55,24 @@ func list(w http.ResponseWriter, r *http.Request) {
 }
 
 func unban(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	result := exec.Command("sudo", "fail2ban-client", "set", conf.Jail, "unbanip", r.URL.Query()["ip"][0])
-	_, err := result.Output()
-	if err != nil {
-		fmt.Println(err.Error())
+	result := exec.Command("sudo", "fail2ban-client", "set", strings.TrimPrefix(conf.Jail, "f2b-"), "unbanip", r.URL.Query()["ip"][0])
+	var b bytes.Buffer
+	result.Stderr = &b
+	if _, err := result.Output(); err != nil {
+		w.WriteHeader(500)
+		errorLog.Println(b.String())
 		return
 	}
-
-	fmt.Fprint(w, renderTable())
 
 	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
 }
 
 func f2bLog(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
 	//page := pageMarkup("<div id='log'></div>", "<script src='http://localhost/UFail2Ban/poll.js'></script>", r)
 	fmt.Fprint(w, nil)
 }
 
 func poll(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	lastDate := strings.TrimSuffix(strings.TrimPrefix(r.URL.Query()["date"][0], "\""), "\"")
 
 	f, err := os.Open("/var/log/fail2ban.log")
@@ -143,49 +137,23 @@ func login(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	l, err := ldap.Dial("tcp", conf.LDAPHost)
+	user, err := getUserFromLDAP(username, password)
 	if err != nil {
-		errorLog.Println(err)
-		return
-	}
-	defer l.Close()
-
-	if err = l.Bind(conf.LDAPUser, conf.LDAPKey); err != nil {
-		errorLog.Println(err)
-		return
-	}
-
-	searchRequest := ldap.NewSearchRequest(
-		conf.LDAPBaseDN,
-		ldap.ScopeWholeSubtree,
-		ldap.NeverDerefAliases,
-		0, 0, false,
-		fmt.Sprintf("(&(objectClass=account)(uid=%s))",
-			ldap.EscapeFilter(username)),
-		[]string{},
-		nil,
-	)
-
-	sr, err := l.Search(searchRequest)
-	if err != nil {
-		errorLog.Println(err)
-		return
+		switch {
+		case err == errWrongPass || err == errNoUser:
+			renderLogin(w, r, "Username or password was incorrect")
+			errorLog.Println(fmt.Sprintf("IP %s failed login with username %s", r.RemoteAddr, username))
+		default:
+			renderLogin(w, r, "Error processing your request")
+			errorLog.Println(err)
+		}
 	}
 
-	if len(sr.Entries) != 1 {
-		fmt.Fprint(w, "User does not exist")
-		return
-	}
-	if err := l.Bind(sr.Entries[0].DN, password); err != nil {
-		renderLogin(w, r, "Wrong password or username")
-		return
-	}
-
-	group := strings.Split(strings.Split(sr.Entries[0].DN, ",")[1], "=")[1]
-	if group != "admins" {
+	if !user.isadmin {
 		notAuthorized(w, r)
 		return
 	}
+
 	http.Redirect(w, r, "/list", http.StatusFound)
 }
 
@@ -214,11 +182,16 @@ func main() {
 	r := chi.NewRouter()
 
 	r.HandleFunc("/", home)
-	r.HandleFunc("/list", list)
-	r.HandleFunc("/unban", unban)
-	r.HandleFunc("/log", f2bLog)
-	r.HandleFunc("/poll", poll)
+
+	//auth group. cookie middleware to be added
+	r.Group(func(r chi.Router) {
+		r.Get("/list", list)
+		r.Delete("/unban", unban)
+		r.Get("/poll", poll)
+	})
+
 	r.Post("/login", login)
+
 	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	loadConfig()
 
