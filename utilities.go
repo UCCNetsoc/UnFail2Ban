@@ -1,15 +1,21 @@
 package main
 
-func filter(s [][]string, f func(string) bool) (ret [][]string) {
+func filter(s []string, f func(string) bool) (ret []string) {
 	for _, val := range s {
-		if len(val) < 1 {
-			continue
-		}
-		if f(val[0]) {
+		if f(val) {
 			ret = append(ret, val)
 		}
 	}
 	return
+}
+
+func mapf(s []string, f func(string) string) {
+	for i, val := range s {
+		if len(val) < 1 {
+			continue
+		}
+		s[i] = f(val)
+	}
 }
 
 func reverse(numbers []string) []string {

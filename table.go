@@ -32,25 +32,27 @@ func renderTable() (tableData TableData) {
 	var rateLimited bool
 
 	//TODO use fail2rest
-	out, err := exec.Command("sudo", "iptables", "-L", conf.Jail).Output()
+	chainData, err := exec.Command("sudo", "iptables", "-L", conf.Jail).Output()
 	if err != nil {
 		errorLog.Println("iptables error", err)
 		return
 	}
 
-	rules := func() (ret [][]string) {
-		for _, j := range strings.Split(string(out), "\n")[2:] {
-			ret = append(ret, strings.Fields(j))
-		}
-		return
-	}()
+	rows := strings.Split(string(chainData), "\n")[2:]
 
-	rules = filter(rules, func(s string) bool {
-		if s == "REJECT" || s == "DROP" {
+	rows = filter(rows, func(s string) bool {
+		if strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP") {
 			return true
 		}
 		return false
 	})
+
+	rules := func() (ret [][]string) {
+		for _, j := range rows {
+			ret = append(ret, strings.Fields(j))
+		}
+		return
+	}()
 
 	for _, rule := range rules {
 		var row Row
