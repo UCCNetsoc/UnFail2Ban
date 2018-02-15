@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/go-chi/chi"
 	"gopkg.in/ldap.v2"
 )
@@ -71,40 +70,11 @@ func unban(w http.ResponseWriter, r *http.Request) {
 	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
 }
 
-func loadConfig() {
-	confRead, err := ioutil.ReadFile("settings.conf")
-	if err != nil {
-		errorLog.Fatalln("Error reading config file:", err)
-	}
-
-	_, err = toml.Decode(string(confRead), conf)
-	if err != nil {
-		errorLog.Fatalln("Error unmarshalling config:", err)
-	}
-}
-
-func setLog() *os.File {
-	logF, err := os.OpenFile("unf2b.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		fmt.Println(err.Error())
-		log.Fatalln("no log provided")
-	}
-	return logF
-}
-
 func f2bLog(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	//page := pageMarkup("<div id='log'></div>", "<script src='http://localhost/UFail2Ban/poll.js'></script>", r)
 	fmt.Fprint(w, nil)
-}
-
-func reverse(numbers []string) []string {
-	for i := 0; i < len(numbers)/2; i++ {
-		j := len(numbers) - i - 1
-		numbers[i], numbers[j] = numbers[j], numbers[i]
-	}
-	return numbers
 }
 
 func poll(w http.ResponseWriter, r *http.Request) {
@@ -206,22 +176,37 @@ func login(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "User does not exist")
 		return
 	}
-
 	if err := l.Bind(sr.Entries[0].DN, password); err != nil {
 		renderLogin(w, r, "Wrong password or username")
 		return
 	}
-	fmt.Fprint(w, "Successful login")
+
+	group := strings.Split(strings.Split(sr.Entries[0].DN, ",")[1], "=")[1]
+	if group != "admins" {
+		notAuthorized(w, r)
+		return
+	}
+	http.Redirect(w, r, "/list", http.StatusFound)
+}
+
+func notAuthorized(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("static/main.html", "static/noauth.html")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err = tmpl.ExecuteTemplate(w, "main", nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func main() {
-	logFile := setLog()
-	defer logF.Close()
-
-	log.SetOutput(logFile)
-
-	info = log.New(logFile, "INFO: ", log.Ldate|log.Ltime)
-	errorLog = log.New(logFile, "ERROR: ", log.Ldate|log.Ltime)
+	info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+	errorLog = log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime)
 
 	info.Println("Starting server...")
 	info.Println("Initializing server...")
@@ -241,6 +226,5 @@ func main() {
 	info.Println("Listening port set to " + conf.Port)
 
 	fmt.Println("Server started..\nListening on http://127.0.0.1:" + conf.Port)
-
 	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, r))
 }

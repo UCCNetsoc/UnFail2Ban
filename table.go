@@ -32,14 +32,14 @@ func renderTable() (tableData TableData) {
 	var rateLimited bool
 
 	//TODO use fail2rest
-	out, err := exec.Command("iptables", "-L", conf.Jail).Output()
+	out, err := exec.Command("sudo", "iptables", "-L", conf.Jail).Output()
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Println("iptables error", err)
 		return
 	}
 
 	rules := func() (ret [][]string) {
-		for _, j := range strings.Split(string(out), "\n")[1:] {
+		for _, j := range strings.Split(string(out), "\n")[2:] {
 			ret = append(ret, strings.Fields(j))
 		}
 		return
