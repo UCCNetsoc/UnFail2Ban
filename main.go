@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi"
+	"github.com/gorilla/context"
 )
 
 type config struct {
@@ -25,7 +26,7 @@ type config struct {
 }
 
 var (
-	conf     = &config{}
+	conf     = new(config)
 	info     *log.Logger
 	errorLog *log.Logger
 	logF     *os.File
@@ -42,15 +43,16 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := template.ParseFiles("static/main.html", "static/table.html")
 	if err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		errorLog.Println(err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html")
 	err = tmpl.ExecuteTemplate(w, "main", data)
 	if err != nil {
-		fmt.Println(err)
-		return
+		w.WriteHeader(http.StatusInternalServerError)
+		errorLog.Println(err)
 	}
 }
 
@@ -108,13 +110,24 @@ func poll(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	renderLogin(w, r, "")
+	val := r.Header.Get("auth")
+	switch val {
+	case "":
+		renderLogin(w, r, "")
+	case "njet":
+		renderLogin(w, r, "Username or password was incorrect")
+	case "err":
+		renderLogin(w, r, "Error processing your request")
+	case "nologin":
+		renderLogin(w, r, "Please log in to view this page")
+	}
 }
 
 func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
 	tmpl, err := template.ParseFiles("static/main.html", "static/form.html")
 	if err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		errorLog.Println(err)
 		return
 	}
 
@@ -125,10 +138,9 @@ func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "main", data)
-	if err != nil {
-		fmt.Println(err)
-		return
+	if err = tmpl.ExecuteTemplate(w, "main", data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		errorLog.Println(err)
 	}
 }
 
@@ -141,16 +153,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case err == errWrongPass || err == errNoUser:
-			renderLogin(w, r, "Username or password was incorrect")
+			w.Header().Set("auth", "njet")
 			errorLog.Println(fmt.Sprintf("IP %s failed login with username %s", r.RemoteAddr, username))
 		default:
-			renderLogin(w, r, "Error processing your request")
+			w.Header().Set("auth", "err")
 			errorLog.Println(err)
 		}
 	}
 
 	if !user.isadmin {
-		notAuthorized(w, r)
+		http.Redirect(w, r, "/noauth", http.StatusUnauthorized)
 		return
 	}
 
@@ -160,15 +172,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 func notAuthorized(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("static/main.html", "static/noauth.html")
 	if err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		errorLog.Println(err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "main", nil)
-	if err != nil {
-		fmt.Println(err)
-		return
+	if err = tmpl.ExecuteTemplate(w, "main", nil); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		errorLog.Println(err)
 	}
 }
 
@@ -182,9 +194,11 @@ func main() {
 	r := chi.NewRouter()
 
 	r.HandleFunc("/", home)
+	r.HandleFunc("/noauth", notAuthorized)
 
 	//auth group. cookie middleware to be added
 	r.Group(func(r chi.Router) {
+		r.Use(checkCookie)
 		r.Get("/list", list)
 		r.Delete("/unban", unban)
 		r.Get("/poll", poll)
@@ -199,5 +213,5 @@ func main() {
 	info.Println("Listening port set to " + conf.Port)
 
 	fmt.Println("Server started..\nListening on http://127.0.0.1:" + conf.Port)
-	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, r))
+	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, context.ClearHandler(r)))
 }
