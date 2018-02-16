@@ -196,7 +196,7 @@ func main() {
 	r.HandleFunc("/", home)
 	r.HandleFunc("/noauth", notAuthorized)
 
-	//auth group. cookie middleware to be added
+	//auth group.
 	r.Group(func(r chi.Router) {
 		r.Use(checkCookie)
 		r.Get("/list", list)
