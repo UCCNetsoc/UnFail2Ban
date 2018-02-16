@@ -3,8 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/ldap.v2"
 	"strings"
+
+	"gopkg.in/ldap.v2"
 )
 
 var (
@@ -14,13 +15,13 @@ var (
 
 type user struct {
 	dn       string
-	username string
-	group    string
+	Username string
+	Group    string
 	isadmin  bool
 }
 
 func getUserFromLDAP(username, password string) (user, error) {
-	u := user{username: username}
+	u := user{Username: username}
 
 	l, err := ldap.Dial("tcp", conf.LDAPHost)
 	if err != nil {
@@ -78,6 +79,6 @@ func unmarshallDNS(u *user, dn string) {
 	})
 
 	u.dn = dn
-	u.group = grouped[1]
+	u.Group = grouped[1]
 	u.isadmin = grouped[1] == "admins"
 }

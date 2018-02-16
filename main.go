@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gorilla/context"
+	"github.com/gorilla/sessions"
 )
 
 type config struct {
@@ -27,10 +29,21 @@ type config struct {
 
 var (
 	conf     = new(config)
-	info     *log.Logger
+	infoLog  *log.Logger
 	errorLog *log.Logger
 	logF     *os.File
+	store    = sessions.NewCookieStore([]byte(conf.LDAPKey))
 )
+
+func init() {
+	store.Options = &sessions.Options{
+		Domain:   "localhost",
+		MaxAge:   60 * 10,
+		HttpOnly: true,
+	}
+
+	gob.Register(user{})
+}
 
 func list(w http.ResponseWriter, r *http.Request) {
 	data := struct {
@@ -57,21 +70,23 @@ func list(w http.ResponseWriter, r *http.Request) {
 }
 
 func unban(w http.ResponseWriter, r *http.Request) {
+	u, err := getUserFromSession(r)
+	if err != nil {
+		//to be modified to handle different errors
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	result := exec.Command("sudo", "fail2ban-client", "set", strings.TrimPrefix(conf.Jail, "f2b-"), "unbanip", r.URL.Query()["ip"][0])
 	var b bytes.Buffer
 	result.Stderr = &b
 	if _, err := result.Output(); err != nil {
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 		errorLog.Println(b.String())
 		return
 	}
 
-	info.Println("IP Address", r.URL.Query()["ip"][0], "has been shown mercy")
-}
-
-func f2bLog(w http.ResponseWriter, r *http.Request) {
-	//page := pageMarkup("<div id='log'></div>", "<script src='http://localhost/UFail2Ban/poll.js'></script>", r)
-	fmt.Fprint(w, nil)
+	infoLog.Println(fmt.Sprintf("IP Address %s has been unbanned by %s", r.URL.Query()["ip"][0], u.Username))
 }
 
 func poll(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +125,8 @@ func poll(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	val := r.Header.Get("auth")
+	val := r.URL.Query().Get("auth")
+
 	switch val {
 	case "":
 		renderLogin(w, r, "")
@@ -149,24 +165,46 @@ func login(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
+	infoLog.Println(fmt.Sprintf("login request from %s for username %s", r.RemoteAddr, username))
+
 	user, err := getUserFromLDAP(username, password)
 	if err != nil {
 		switch {
 		case err == errWrongPass || err == errNoUser:
-			w.Header().Set("auth", "njet")
 			errorLog.Println(fmt.Sprintf("IP %s failed login with username %s", r.RemoteAddr, username))
+			http.Redirect(w, r, "/?auth=njet", http.StatusTemporaryRedirect)
+			return
 		default:
-			w.Header().Set("auth", "err")
 			errorLog.Println(err)
+			http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
+			return
 		}
 	}
 
 	if !user.isadmin {
-		http.Redirect(w, r, "/noauth", http.StatusUnauthorized)
+		http.Redirect(w, r, "/noauth", http.StatusTemporaryRedirect)
+		infoLog.Println(fmt.Sprintf("non-admin %s attempted login from %s", username, r.RemoteAddr))
 		return
 	}
 
-	http.Redirect(w, r, "/list", http.StatusFound)
+	session, err := store.New(r, "id")
+	if err != nil {
+		http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
+		errorLog.Println("session error", err)
+		return
+	}
+
+	session.Values["user"] = user
+
+	if err := session.Save(r, w); err != nil {
+		http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
+		errorLog.Println("error saving session", err)
+		return
+	}
+
+	infoLog.Println(fmt.Sprintf("%s successfully logged in from %s", username, r.RemoteAddr))
+
+	http.Redirect(w, r, "/list", http.StatusTemporaryRedirect)
 }
 
 func notAuthorized(w http.ResponseWriter, r *http.Request) {
@@ -185,11 +223,11 @@ func notAuthorized(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+	infoLog = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
 	errorLog = log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime)
 
-	info.Println("Starting server...")
-	info.Println("Initializing server...")
+	infoLog.Println("Starting server...")
+	infoLog.Println("Initializing server...")
 
 	r := chi.NewRouter()
 
@@ -199,7 +237,7 @@ func main() {
 	//auth group.
 	r.Group(func(r chi.Router) {
 		r.Use(checkCookie)
-		r.Get("/list", list)
+		r.HandleFunc("/list", list)
 		r.Delete("/unban", unban)
 		r.Get("/poll", poll)
 	})
@@ -209,8 +247,8 @@ func main() {
 	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 	loadConfig()
 
-	info.Println("Fail2Ban jail set to " + conf.Jail)
-	info.Println("Listening port set to " + conf.Port)
+	infoLog.Println("Fail2Ban jail set to " + conf.Jail)
+	infoLog.Println("Listening port set to " + conf.Port)
 
 	fmt.Println("Server started..\nListening on http://127.0.0.1:" + conf.Port)
 	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, context.ClearHandler(r)))
