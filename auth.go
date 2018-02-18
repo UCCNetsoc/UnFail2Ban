@@ -76,3 +76,11 @@ func unmarshallDNS(u *user, dn string) {
 	u.Group = grouped[1]
 	u.isadmin = grouped[1] == "admins"
 }
+
+func mapf(s []string, f func(string) string) []string {
+	fs := make([]string, len(s))
+	for i, val := range s {
+		fs[i] = f(val)
+	}
+	return fs
+}

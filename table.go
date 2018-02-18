@@ -108,3 +108,12 @@ func getIPInfo(url string) ([4]string, bool) {
 
 	return [4]string{fmt.Sprintf("%s %s %s", ipDetails.City, ipDetails.Region, ipDetails.Country), fmt.Sprintf("Lat: %f Lon: %f", ipDetails.Lat, ipDetails.Lon), ipDetails.Org}, false
 }
+
+func filter(s []string, f func(string) bool) (ret []string) {
+	for _, val := range s {
+		if f(val) {
+			ret = append(ret, val)
+		}
+	}
+	return
+}
