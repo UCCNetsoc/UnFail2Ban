@@ -25,6 +25,12 @@ var (
 	store    = sessions.NewCookieStore([]byte(conf.LDAPKey))
 )
 
+var (
+	tableTemplate  = template.Must(template.ParseFiles("static/main.html", "static/table.html"))
+	formTemplate   = template.Must(template.ParseFiles("static/main.html", "static/form.html"))
+	noauthTemplate = template.Must(template.ParseFiles("static/main.html", "static/noauth.html"))
+)
+
 func init() {
 	store.Options = &sessions.Options{
 		Domain:   conf.CookieHost,
@@ -44,16 +50,8 @@ func list(w http.ResponseWriter, r *http.Request) {
 		r.RemoteAddr,
 	}
 
-	tmpl, err := template.ParseFiles("static/main.html", "static/table.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "main", data)
-	if err != nil {
+	if err := tableTemplate.ExecuteTemplate(w, "main", data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorLog.Println(err)
 	}
@@ -130,13 +128,6 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
-	tmpl, err := template.ParseFiles("static/main.html", "static/form.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
-		return
-	}
-
 	data := struct {
 		Data string
 	}{
@@ -144,7 +135,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	if err = tmpl.ExecuteTemplate(w, "main", data); err != nil {
+	if err := formTemplate.ExecuteTemplate(w, "main", data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorLog.Println(err)
 	}
@@ -198,15 +189,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func notAuthorized(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("static/main.html", "static/noauth.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/html")
-	if err = tmpl.ExecuteTemplate(w, "main", nil); err != nil {
+	if err := noauthTemplate.ExecuteTemplate(w, "main", nil); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorLog.Println(err)
 	}
