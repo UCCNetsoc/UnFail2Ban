@@ -20,16 +20,16 @@ type ipInfo struct {
 	Message string  `json:"message"`
 }
 
-type Row struct {
+type row struct {
 	Data []string
 }
 
-type TableData struct {
+type tableData struct {
 	NotEmpty bool
-	Rows     []Row
+	Rows     []row
 }
 
-func renderTable() (tableData TableData) {
+func renderTable() (tableData tableData) {
 	var rateLimited bool
 
 	//TODO use fail2rest
@@ -38,17 +38,14 @@ func renderTable() (tableData TableData) {
 	result.Stderr = &b
 	chainData, err := result.Output()
 	if err != nil {
-		errorLog.Println("iptables error", err)
+		errorLog.Printf("iptables error: %v", err)
 		return
 	}
 
 	rows := strings.Split(string(chainData), "\n")[2:]
 
 	rows = filter(rows, func(s string) bool {
-		if strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP") {
-			return true
-		}
-		return false
+		return strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP")
 	})
 
 	rules := func() (ret [][]string) {
@@ -59,7 +56,7 @@ func renderTable() (tableData TableData) {
 	}()
 
 	for _, rule := range rules {
-		var row Row
+		var row row
 		var extendRow [4]string
 
 		for j := 0; j < len(rule); j++ {
@@ -91,7 +88,7 @@ func renderTable() (tableData TableData) {
 func getIPInfo(url string) ([4]string, bool) {
 	resp, err := http.Get("http://ip-api.com/json/" + url)
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to get response from ip-api.com: %v", err)
 		return [4]string{}, false
 	}
 	defer resp.Body.Close()
@@ -102,7 +99,7 @@ func getIPInfo(url string) ([4]string, bool) {
 
 	var ipDetails ipInfo
 	if err := json.NewDecoder(resp.Body).Decode(&ipDetails); err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to decode JSON: %v", err)
 		return [4]string{}, false
 	}
 	if ipDetails.Status != "success" && ipDetails.Message == "over quota" {
@@ -110,4 +107,13 @@ func getIPInfo(url string) ([4]string, bool) {
 	}
 
 	return [4]string{fmt.Sprintf("%s %s %s", ipDetails.City, ipDetails.Region, ipDetails.Country), fmt.Sprintf("Lat: %f Lon: %f", ipDetails.Lat, ipDetails.Lon), ipDetails.Org}, false
+}
+
+func filter(s []string, f func(string) bool) (ret []string) {
+	for _, val := range s {
+		if f(val) {
+			ret = append(ret, val)
+		}
+	}
+	return
 }

@@ -10,7 +10,7 @@ func checkCookie(next http.Handler) http.Handler {
 		session, err := store.Get(r, "id")
 		if err != nil {
 			http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
-			errorLog.Println(err)
+			errorLog.Printf("Failed to get session from store: %v", err)
 			return
 		}
 
@@ -26,7 +26,7 @@ func checkCookie(next http.Handler) http.Handler {
 func getUserFromSession(r *http.Request) (user, error) {
 	session, err := store.Get(r, "id")
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to get session from store: %v", err)
 		return user{}, err
 	}
 
