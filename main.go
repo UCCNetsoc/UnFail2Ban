@@ -44,7 +44,7 @@ func init() {
 func list(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data := struct {
-		Data TableData
+		Data tableData
 		IP   string
 	}{
 		renderTable(),

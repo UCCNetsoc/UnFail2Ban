@@ -20,16 +20,16 @@ type ipInfo struct {
 	Message string  `json:"message"`
 }
 
-type Row struct {
+type row struct {
 	Data []string
 }
 
-type TableData struct {
+type tableData struct {
 	NotEmpty bool
-	Rows     []Row
+	Rows     []row
 }
 
-func renderTable() (tableData TableData) {
+func renderTable() (tableData tableData) {
 	var rateLimited bool
 
 	//TODO use fail2rest
@@ -56,7 +56,7 @@ func renderTable() (tableData TableData) {
 	}()
 
 	for _, rule := range rules {
-		var row Row
+		var row row
 		var extendRow [4]string
 
 		for j := 0; j < len(rule); j++ {
