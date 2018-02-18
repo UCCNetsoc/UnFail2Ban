@@ -226,7 +226,9 @@ func main() {
 	r.Post("/login", login)
 
 	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-	loadConfig()
+	if err := loadConfig(); err != nil {
+		errorLog.Fatalf("Failed to load configuration: %v", err)
+	}
 
 	infoLog.Println("Fail2Ban jail set to " + conf.Jail)
 	infoLog.Println("Listening port set to " + conf.Port)
