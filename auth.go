@@ -25,13 +25,13 @@ func getUserFromLDAP(username, password string) (user, error) {
 
 	l, err := ldap.Dial("tcp", conf.LDAPHost)
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to connect to LDAP at %q: %v", conf.LDAPHost, err)
 		return u, err
 	}
 	defer l.Close()
 
-	if err = l.Bind(conf.LDAPUser, conf.LDAPKey); err != nil {
-		errorLog.Println(err)
+	if err := l.Bind(conf.LDAPUser, conf.LDAPKey); err != nil {
+		errorLog.Printf("Failed to bind user %q to LDAP: %v", conf.LDAPUser, err)
 		return u, err
 	}
 
@@ -48,7 +48,7 @@ func getUserFromLDAP(username, password string) (user, error) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to search LDAP database: %v", err)
 		return u, err
 	}
 

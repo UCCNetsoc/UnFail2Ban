@@ -53,7 +53,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	if err := tableTemplate.ExecuteTemplate(w, "main", data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to execute table template: %v", err)
 	}
 }
 
@@ -70,11 +70,11 @@ func unban(w http.ResponseWriter, r *http.Request) {
 	result.Stderr = &b
 	if _, err := result.Output(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(b.String())
+		errorLog.Printf("Failed to execute unban command: %s", b.String())
 		return
 	}
 
-	infoLog.Println(fmt.Sprintf("IP Address %s has been unbanned by %s", r.URL.Query()["ip"][0], u.Username))
+	infoLog.Printf("IP Address %s has been unbanned by %s", r.URL.Query()["ip"][0], u.Username)
 }
 
 func poll(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +83,7 @@ func poll(w http.ResponseWriter, r *http.Request) {
 	f, err := os.Open("/var/log/fail2ban.log")
 	if err != nil {
 		fmt.Fprint(w)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to open fail2ban log: %v", err)
 		return
 	}
 	defer f.Close()
@@ -91,7 +91,7 @@ func poll(w http.ResponseWriter, r *http.Request) {
 	newLogText, err := ioutil.ReadAll(f)
 	if err != nil {
 		fmt.Fprint(w, "")
-		errorLog.Println(err)
+		errorLog.Printf("Failed to read fail2ban log: %v", err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
 	w.Header().Set("Content-Type", "text/html")
 	if err := formTemplate.ExecuteTemplate(w, "main", data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to execute login page template: %v", err)
 	}
 }
 
@@ -146,17 +146,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	infoLog.Println(fmt.Sprintf("login request from %s for username %s", r.RemoteAddr, username))
+	infoLog.Printf("login request from %s for username %s", r.RemoteAddr, username)
 
 	user, err := getUserFromLDAP(username, password)
 	if err != nil {
 		switch {
 		case err == errWrongPass || err == errNoUser:
-			errorLog.Println(fmt.Sprintf("IP %s failed login with username %s", r.RemoteAddr, username))
+			errorLog.Printf("IP %s failed login with username %s", r.RemoteAddr, username)
 			http.Redirect(w, r, "/?auth=njet", http.StatusTemporaryRedirect)
 			return
 		default:
-			errorLog.Println(err)
+			errorLog.Printf("Failed to get user form LDAP: %v", err)
 			http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
 			return
 		}
@@ -164,14 +164,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	if !user.isadmin {
 		http.Redirect(w, r, "/noauth", http.StatusTemporaryRedirect)
-		infoLog.Println(fmt.Sprintf("non-admin %s attempted login from %s", username, r.RemoteAddr))
+		infoLog.Printf("non-admin %s attempted login from %s", username, r.RemoteAddr)
 		return
 	}
 
 	session, err := store.New(r, "id")
 	if err != nil {
 		http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
-		errorLog.Println("session error", err)
+		errorLog.Printf("Failed to create new session: %v", err)
 		return
 	}
 
@@ -179,11 +179,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	if err := session.Save(r, w); err != nil {
 		http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
-		errorLog.Println("error saving session", err)
+		errorLog.Printf("error saving session: %v", err)
 		return
 	}
 
-	infoLog.Println(fmt.Sprintf("%s successfully logged in from %s", username, r.RemoteAddr))
+	infoLog.Printf("%s successfully logged in from %s", username, r.RemoteAddr)
 
 	http.Redirect(w, r, "/list", http.StatusTemporaryRedirect)
 }
@@ -192,7 +192,7 @@ func notAuthorized(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	if err := noauthTemplate.ExecuteTemplate(w, "main", nil); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to execute not-authorized template: %v", err)
 	}
 }
 

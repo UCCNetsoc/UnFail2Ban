@@ -38,7 +38,7 @@ func renderTable() (tableData TableData) {
 	result.Stderr = &b
 	chainData, err := result.Output()
 	if err != nil {
-		errorLog.Println("iptables error", err)
+		errorLog.Printf("iptables error: %v", err)
 		return
 	}
 
@@ -91,7 +91,7 @@ func renderTable() (tableData TableData) {
 func getIPInfo(url string) ([4]string, bool) {
 	resp, err := http.Get("http://ip-api.com/json/" + url)
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to get response from ip-api.com: %v", err)
 		return [4]string{}, false
 	}
 	defer resp.Body.Close()
@@ -102,7 +102,7 @@ func getIPInfo(url string) ([4]string, bool) {
 
 	var ipDetails ipInfo
 	if err := json.NewDecoder(resp.Body).Decode(&ipDetails); err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to decode JSON: %v", err)
 		return [4]string{}, false
 	}
 	if ipDetails.Status != "success" && ipDetails.Message == "over quota" {
