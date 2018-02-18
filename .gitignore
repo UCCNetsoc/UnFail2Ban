@@ -1,0 +1,5 @@
+settings.conf
+in.txt
+*.log
+node_modules
+*.map

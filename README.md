@@ -1,20 +1,12 @@
 # UnFail2Ban
-Web front-end and back-end to unban those hit by Fail2Ban. Written for UCC Netsoc. Very WIP. Coded by Noah Santschi-Cooney (Strum355)
+Web front-end and back-end to unban those hit by Fail2Ban. Written for UCC Netsoc. Coded by Noah Santschi-Cooney (Strum355)
 
 # Dependencies
-Needs to be able to connect to ipinfo.io
-Fallback will be implemented later
-
+Needs to be able to connect to ip-api.com. Currently done server side.  
+Uses LDAP for auth.
 >More details to be added later
 
 # Features
-* Fail2Ban log viewing
+* ~~Fail2Ban log viewing~~ returning soon
 * View and unban IPs
-
-# Screenshot
-
-![Screenshot](http://strum355.netsoc.co/public_images/fail2ban3.png)
-
-![Screenshot1](http://strum355.netsoc.co/public_images/fail2ban1.png)
-
-![Screenshot2](http://strum355.netsoc.co/public_images/fail2ban4.png)
+* Login via LDAP

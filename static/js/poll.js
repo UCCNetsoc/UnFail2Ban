@@ -12,7 +12,7 @@
         setInterval(poll, 5000);
     }
 
-    function poll(event){
+    function poll(){
         request = new XMLHttpRequest();
         request.onreadystatechange = getResponse;
         request.open('GET', 'poll?date="'+date+'"', true);

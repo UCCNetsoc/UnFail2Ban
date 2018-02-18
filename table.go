@@ -1,91 +1,113 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 )
 
 type ipInfo struct {
-	City     string `json:"city"`
-	Country  string `json:"country"`
-	Region   string `json:"region"`
-	Coord    string `json:"loc"`
-	Org      string `json:"org"`
-	Hostname string `json:"hostname"`
+	Status  string  `json:"status"`
+	City    string  `json:"city"`
+	Country string  `json:"countryCode"`
+	Region  string  `json:"region"`
+	Lat     float32 `json:"lat"`
+	Lon     float32 `json:"lon"`
+	Org     string  `json:"org"`
+	Message string  `json:"message"`
 }
 
-// RenderTable generates the HTML table that shows all the entries in the
-// Fail2Ban jail specified by the command line argument -jail
-func renderTable() (table string) {
+type Row struct {
+	Data []string
+}
 
-	search := "Chain f2b-" + conf.Jail + " (1 references)\n"
+type TableData struct {
+	NotEmpty bool
+	Rows     []Row
+}
 
-	var out []byte
-	if !inDev {
-		out, _ = exec.Command("iptables", "-L", "-n").Output()
-	} else {
-		i, _ := os.Open("out.txt")
-		defer i.Close()
-		out, _ = ioutil.ReadAll(i)
+func renderTable() (tableData TableData) {
+	var rateLimited bool
+
+	//TODO use fail2rest
+	result := exec.Command("sudo", "iptables", "-L", conf.Jail)
+	var b bytes.Buffer
+	result.Stderr = &b
+	chainData, err := result.Output()
+	if err != nil {
+		errorLog.Println("iptables error", err)
+		return
 	}
 
-	place := strings.Index(string(out[:]), search)
-	cut := out[place+len(search):]
-	sep := strings.Split(string(cut[:len(cut)-1]), "\n")[1:]
-	ret, pad := prepare(sep)
+	rows := strings.Split(string(chainData), "\n")[2:]
 
-	table = `<form>
-			  <table class="responstable">
-			  	  <tr>
-					<th>SELECT</th>
-					<th>TARGET</th>
-					<th>PROT</th>
-					<th>OPT</th>
-					<th>SOURCE</th>
-					<th>DESTINATION</th>
-					<th>ADDRESS</th>
-					<th>CO-ORDS</th>
-					<th>ORGANISATION</th>
-					<th>HOST NAME</th>
-				  </tr>`
-
-	//Only show IPs that are blocked
-	for i := range ret {
-		if ret[i][0] == "REJECT" || ret[i][0] == "DROP" {
-			table += "<tr class='row'><td><input type='button' class='input' value='Unban'></input></td>"
-			for j := 0; j < pad; j++ {
-				table += "<td>" + ret[i][j] + "</td>"
-			}
-			resp, err := http.Get("https://www.ipinfo.io/" + ret[i][3] + "/json")
-			if err != nil {
-				errorLog.Println(err)
-				break
-			} else if resp.StatusCode == 429 {
-				table = "<p class='error'>To many requests to https://ipinfo.io/ <br>Rate limit is 1000 requests per day. Please contact a Sys Admin about this or read the error log if you are one.</p>"
-				break
-			}
-			defer resp.Body.Close()
-
-			var ipDetails ipInfo
-			ipData, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				errorLog.Println(err)
-			}
-			json.Unmarshal(ipData, &ipDetails)
-
-			ipinfo := []string{ipDetails.City, ipDetails.Region, ipDetails.Country}
-			table += "<td>" + strings.Join(ipinfo, ", ") + "</td>"
-			table += "<td>" + ipDetails.Coord + "</td>"
-			table += "<td>" + ipDetails.Org + "</td>"
-			table += "<td>" + ipDetails.Hostname + "</td>"
-			table += "</tr>" 
-
+	rows = filter(rows, func(s string) bool {
+		if strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP") {
+			return true
 		}
+		return false
+	})
+
+	rules := func() (ret [][]string) {
+		for _, j := range rows {
+			ret = append(ret, strings.Fields(j))
+		}
+		return
+	}()
+
+	for _, rule := range rules {
+		var row Row
+		var extendRow [4]string
+
+		for j := 0; j < len(rule); j++ {
+			if j == 5 {
+				row.Data = append(row.Data, strings.Join(rule[j:j+2], " "))
+				j++
+				continue
+			}
+			row.Data = append(row.Data, rule[j])
+		}
+
+		if !rateLimited {
+			// Gonna move this to client side later
+			// By doing this, we spread the requests over multiple IPs rather than
+			// all of them originating from our servers.
+			// Or not, will see
+			extendRow, rateLimited = getIPInfo(rule[3])
+		}
+		row.Data = append(row.Data, extendRow[:]...)
+
+		tableData.Rows = append(tableData.Rows, row)
 	}
-	table += "</table></form>"
+
+	tableData.NotEmpty = len(tableData.Rows) > 0
+
 	return
+}
+
+func getIPInfo(url string) ([4]string, bool) {
+	resp, err := http.Get("http://ip-api.com/json/" + url)
+	if err != nil {
+		errorLog.Println(err)
+		return [4]string{}, false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return [4]string{"Ratelimited", "By", "ipinfo.io", ":("}, true
+	}
+
+	var ipDetails ipInfo
+	if err := json.NewDecoder(resp.Body).Decode(&ipDetails); err != nil {
+		errorLog.Println(err)
+		return [4]string{}, false
+	}
+	if ipDetails.Status != "success" && ipDetails.Message == "over quota" {
+		return [4]string{}, true
+	}
+
+	return [4]string{fmt.Sprintf("%s %s %s", ipDetails.City, ipDetails.Region, ipDetails.Country), fmt.Sprintf("Lat: %f Lon: %f", ipDetails.Lat, ipDetails.Lon), ipDetails.Org}, false
 }
