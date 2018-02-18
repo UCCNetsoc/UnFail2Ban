@@ -11,9 +11,6 @@ func filter(s []string, f func(string) bool) (ret []string) {
 
 func mapf(s []string, f func(string) string) {
 	for i, val := range s {
-		if len(val) < 1 {
-			continue
-		}
 		s[i] = f(val)
 	}
 }
