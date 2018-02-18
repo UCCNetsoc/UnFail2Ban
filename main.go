@@ -42,6 +42,7 @@ func init() {
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	data := struct {
 		Data TableData
 		IP   string
@@ -58,6 +59,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 }
 
 func unban(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	u, err := getUserFromSession(r)
 	if err != nil {
 		//to be modified to handle different errors
@@ -78,6 +80,7 @@ func unban(w http.ResponseWriter, r *http.Request) {
 }
 
 func poll(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	lastDate := strings.TrimSuffix(strings.TrimPrefix(r.URL.Query()["date"][0], "\""), "\"")
 
 	f, err := os.Open("/var/log/fail2ban.log")
@@ -113,6 +116,7 @@ func poll(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	val := r.URL.Query().Get("auth")
 
 	switch val {
@@ -128,6 +132,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
+	defer r.Body.Close()
 	data := struct {
 		Data string
 	}{
@@ -142,6 +147,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	r.ParseForm()
 	username := r.FormValue("username")
 	password := r.FormValue("password")
@@ -189,6 +195,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func notAuthorized(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	w.Header().Set("Content-Type", "text/html")
 	if err := noauthTemplate.ExecuteTemplate(w, "main", nil); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
