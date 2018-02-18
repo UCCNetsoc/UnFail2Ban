@@ -45,10 +45,7 @@ func renderTable() (tableData TableData) {
 	rows := strings.Split(string(chainData), "\n")[2:]
 
 	rows = filter(rows, func(s string) bool {
-		if strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP") {
-			return true
-		}
-		return false
+		return strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP")
 	})
 
 	rules := func() (ret [][]string) {
