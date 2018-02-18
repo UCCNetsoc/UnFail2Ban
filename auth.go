@@ -68,7 +68,7 @@ func getUserFromLDAP(username, password string) (user, error) {
 
 func unmarshallDNS(u *user, dn string) {
 	grouped := strings.Split(dn, ",")[:3]
-	mapf(grouped, func(s string) string {
+	grouped = mapf(grouped, func(s string) string {
 		return strings.Split(s, "=")[1]
 	})
 

@@ -9,10 +9,12 @@ func filter(s []string, f func(string) bool) (ret []string) {
 	return
 }
 
-func mapf(s []string, f func(string) string) {
+func mapf(s []string, f func(string) string) []string {
+	fs := make([]string, len(s))
 	for i, val := range s {
-		s[i] = f(val)
+		fs[i] = f(val)
 	}
+	return fs
 }
 
 func reverse(numbers []string) []string {
