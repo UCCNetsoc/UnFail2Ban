@@ -17,16 +17,6 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-type config struct {
-	Jail string `toml:"jail"`
-	Port string `toml:"port"`
-
-	LDAPKey    string `toml:"LDAP_Key"`
-	LDAPHost   string `toml:"LDAP_Host"`
-	LDAPUser   string `toml:"LDAP_User"`
-	LDAPBaseDN string `toml:"LDAP_BaseDN"`
-}
-
 var (
 	conf     = new(config)
 	infoLog  *log.Logger
@@ -37,7 +27,7 @@ var (
 
 func init() {
 	store.Options = &sessions.Options{
-		Domain:   "localhost",
+		Domain:   conf.CookieHost,
 		MaxAge:   60 * 10,
 		HttpOnly: true,
 	}
@@ -250,6 +240,6 @@ func main() {
 	infoLog.Println("Fail2Ban jail set to " + conf.Jail)
 	infoLog.Println("Listening port set to " + conf.Port)
 
-	fmt.Println("Server started..\nListening on http://127.0.0.1:" + conf.Port)
+	fmt.Println(fmt.Sprintf("Server started..\nListening on http://%s:%s", conf.ListenHost, conf.Port))
 	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, context.ClearHandler(r)))
 }
