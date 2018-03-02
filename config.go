@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 
 	"github.com/BurntSushi/toml"
@@ -18,13 +19,14 @@ type config struct {
 	LDAPBaseDN string `toml:"LDAP_BaseDN"`
 }
 
-func loadConfig() {
+func loadConfig() error {
 	confRead, err := ioutil.ReadFile("settings.conf")
 	if err != nil {
-		errorLog.Fatalln("Error reading config file:", err)
+		return fmt.Errorf("Failed to read config file: %v", err)
 	}
 
 	if _, err = toml.Decode(string(confRead), conf); err != nil {
-		errorLog.Fatalln("Error unmarshalling config:", err)
+		return fmt.Errorf("Failed to unmarshall config: %v", err)
 	}
+	return nil
 }

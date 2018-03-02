@@ -25,13 +25,13 @@ func getUserFromLDAP(username, password string) (user, error) {
 
 	l, err := ldap.Dial("tcp", conf.LDAPHost)
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to connect to LDAP at %q: %v", conf.LDAPHost, err)
 		return u, err
 	}
 	defer l.Close()
 
-	if err = l.Bind(conf.LDAPUser, conf.LDAPKey); err != nil {
-		errorLog.Println(err)
+	if err := l.Bind(conf.LDAPUser, conf.LDAPKey); err != nil {
+		errorLog.Printf("Failed to bind user %q to LDAP: %v", conf.LDAPUser, err)
 		return u, err
 	}
 
@@ -48,7 +48,7 @@ func getUserFromLDAP(username, password string) (user, error) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		errorLog.Println(err)
+		errorLog.Printf("Failed to search LDAP database: %v", err)
 		return u, err
 	}
 
@@ -58,27 +58,29 @@ func getUserFromLDAP(username, password string) (user, error) {
 
 	unmarshallDNS(&u, sr.Entries[0].DN)
 
-	if !verifyPassword(password, u, l) {
+	// verify password
+	if err := l.Bind(u.dn, password); err != nil {
 		return u, errWrongPass
 	}
 
 	return u, nil
 }
 
-func verifyPassword(pass string, u user, l *ldap.Conn) bool {
-	if err := l.Bind(u.dn, pass); err != nil {
-		return false
-	}
-	return true
-}
-
 func unmarshallDNS(u *user, dn string) {
 	grouped := strings.Split(dn, ",")[:3]
-	mapf(grouped, func(s string) string {
+	grouped = mapf(grouped, func(s string) string {
 		return strings.Split(s, "=")[1]
 	})
 
 	u.dn = dn
 	u.Group = grouped[1]
 	u.isadmin = grouped[1] == "admins"
+}
+
+func mapf(s []string, f func(string) string) []string {
+	fs := make([]string, len(s))
+	for i, val := range s {
+		fs[i] = f(val)
+	}
+	return fs
 }

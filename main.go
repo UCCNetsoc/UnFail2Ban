@@ -25,6 +25,12 @@ var (
 	store    = sessions.NewCookieStore([]byte(conf.LDAPKey))
 )
 
+var (
+	tableTemplate  = template.Must(template.ParseFiles("static/main.html", "static/table.html"))
+	formTemplate   = template.Must(template.ParseFiles("static/main.html", "static/form.html"))
+	noauthTemplate = template.Must(template.ParseFiles("static/main.html", "static/noauth.html"))
+)
+
 func init() {
 	store.Options = &sessions.Options{
 		Domain:   conf.CookieHost,
@@ -36,30 +42,24 @@ func init() {
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	data := struct {
-		Data TableData
+		Data tableData
 		IP   string
 	}{
 		renderTable(),
 		r.RemoteAddr,
 	}
 
-	tmpl, err := template.ParseFiles("static/main.html", "static/table.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "main", data)
-	if err != nil {
+	if err := tableTemplate.ExecuteTemplate(w, "main", data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to execute table template: %v", err)
 	}
 }
 
 func unban(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	u, err := getUserFromSession(r)
 	if err != nil {
 		//to be modified to handle different errors
@@ -72,20 +72,21 @@ func unban(w http.ResponseWriter, r *http.Request) {
 	result.Stderr = &b
 	if _, err := result.Output(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(b.String())
+		errorLog.Printf("Failed to execute unban command: %s", b.String())
 		return
 	}
 
-	infoLog.Println(fmt.Sprintf("IP Address %s has been unbanned by %s", r.URL.Query()["ip"][0], u.Username))
+	infoLog.Printf("IP Address %s has been unbanned by %s", r.URL.Query()["ip"][0], u.Username)
 }
 
 func poll(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	lastDate := strings.TrimSuffix(strings.TrimPrefix(r.URL.Query()["date"][0], "\""), "\"")
 
 	f, err := os.Open("/var/log/fail2ban.log")
 	if err != nil {
 		fmt.Fprint(w)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to open fail2ban log: %v", err)
 		return
 	}
 	defer f.Close()
@@ -93,7 +94,7 @@ func poll(w http.ResponseWriter, r *http.Request) {
 	newLogText, err := ioutil.ReadAll(f)
 	if err != nil {
 		fmt.Fprint(w, "")
-		errorLog.Println(err)
+		errorLog.Printf("Failed to read fail2ban log: %v", err)
 		return
 	}
 
@@ -115,6 +116,7 @@ func poll(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	val := r.URL.Query().Get("auth")
 
 	switch val {
@@ -130,13 +132,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
-	tmpl, err := template.ParseFiles("static/main.html", "static/form.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
-		return
-	}
-
+	defer r.Body.Close()
 	data := struct {
 		Data string
 	}{
@@ -144,28 +140,29 @@ func renderLogin(w http.ResponseWriter, r *http.Request, msg string) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	if err = tmpl.ExecuteTemplate(w, "main", data); err != nil {
+	if err := formTemplate.ExecuteTemplate(w, "main", data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to execute login page template: %v", err)
 	}
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	r.ParseForm()
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	infoLog.Println(fmt.Sprintf("login request from %s for username %s", r.RemoteAddr, username))
+	infoLog.Printf("login request from %s for username %s", r.RemoteAddr, username)
 
 	user, err := getUserFromLDAP(username, password)
 	if err != nil {
 		switch {
 		case err == errWrongPass || err == errNoUser:
-			errorLog.Println(fmt.Sprintf("IP %s failed login with username %s", r.RemoteAddr, username))
+			errorLog.Printf("IP %s failed login with username %s", r.RemoteAddr, username)
 			http.Redirect(w, r, "/?auth=njet", http.StatusTemporaryRedirect)
 			return
 		default:
-			errorLog.Println(err)
+			errorLog.Printf("Failed to get user form LDAP: %v", err)
 			http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
 			return
 		}
@@ -173,14 +170,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	if !user.isadmin {
 		http.Redirect(w, r, "/noauth", http.StatusTemporaryRedirect)
-		infoLog.Println(fmt.Sprintf("non-admin %s attempted login from %s", username, r.RemoteAddr))
+		infoLog.Printf("non-admin %s attempted login from %s", username, r.RemoteAddr)
 		return
 	}
 
 	session, err := store.New(r, "id")
 	if err != nil {
 		http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
-		errorLog.Println("session error", err)
+		errorLog.Printf("Failed to create new session: %v", err)
 		return
 	}
 
@@ -188,27 +185,21 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	if err := session.Save(r, w); err != nil {
 		http.Redirect(w, r, "/?auth=err", http.StatusTemporaryRedirect)
-		errorLog.Println("error saving session", err)
+		errorLog.Printf("error saving session: %v", err)
 		return
 	}
 
-	infoLog.Println(fmt.Sprintf("%s successfully logged in from %s", username, r.RemoteAddr))
+	infoLog.Printf("%s successfully logged in from %s", username, r.RemoteAddr)
 
 	http.Redirect(w, r, "/list", http.StatusTemporaryRedirect)
 }
 
 func notAuthorized(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("static/main.html", "static/noauth.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
-		return
-	}
-
+	defer r.Body.Close()
 	w.Header().Set("Content-Type", "text/html")
-	if err = tmpl.ExecuteTemplate(w, "main", nil); err != nil {
+	if err := noauthTemplate.ExecuteTemplate(w, "main", nil); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorLog.Println(err)
+		errorLog.Printf("Failed to execute not-authorized template: %v", err)
 	}
 }
 
@@ -235,7 +226,9 @@ func main() {
 	r.Post("/login", login)
 
 	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-	loadConfig()
+	if err := loadConfig(); err != nil {
+		errorLog.Fatalf("Failed to load configuration: %v", err)
+	}
 
 	infoLog.Println("Fail2Ban jail set to " + conf.Jail)
 	infoLog.Println("Listening port set to " + conf.Port)
