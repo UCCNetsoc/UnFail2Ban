@@ -38,7 +38,7 @@ func renderTable() (tableData tableData) {
 	result.Stderr = &b
 	chainData, err := result.Output()
 	if err != nil {
-		errorLog.Printf("iptables error: %v", err)
+		errorLog.Printf("iptables error: %v", b.String())
 		return
 	}
 
