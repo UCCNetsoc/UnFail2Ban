@@ -26,12 +26,16 @@ var (
 )
 
 var (
-	tableTemplate  = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/table.html"))
-	formTemplate   = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/form.html"))
-	noauthTemplate = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/noauth.html"))
+	tableTemplate  *template.Template
+	formTemplate   *template.Template
+	noauthTemplate *template.Template
 )
 
 func init() {
+	if err := loadConfig(); err != nil {
+		errorLog.Fatalf("Failed to load configuration: %v", err)
+	}
+
 	store.Options = &sessions.Options{
 		Domain:   conf.CookieHost,
 		MaxAge:   60 * 10,
@@ -39,6 +43,10 @@ func init() {
 	}
 
 	gob.Register(user{})
+
+	tableTemplate = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/table.html"))
+	formTemplate = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/form.html"))
+	noauthTemplate = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/noauth.html"))
 }
 
 func list(w http.ResponseWriter, r *http.Request) {
@@ -226,9 +234,6 @@ func main() {
 	r.Post("/login", login)
 
 	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(conf.FileDir+"static/"))))
-	if err := loadConfig(); err != nil {
-		errorLog.Fatalf("Failed to load configuration: %v", err)
-	}
 
 	infoLog.Println("Fail2Ban jail set to " + conf.Jail)
 	infoLog.Println("Listening port set to " + conf.Port)
