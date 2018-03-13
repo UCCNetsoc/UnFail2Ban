@@ -234,5 +234,5 @@ func main() {
 	infoLog.Println("Listening port set to " + conf.Port)
 
 	fmt.Println(fmt.Sprintf("Server started..\nListening on http://%s:%s", conf.ListenHost, conf.Port))
-	errorLog.Fatalln(http.ListenAndServe(":"+conf.Port, context.ClearHandler(r)))
+	errorLog.Fatalln(http.ListenAndServe(conf.ListenHost+":"+conf.Port, context.ClearHandler(r)))
 }
