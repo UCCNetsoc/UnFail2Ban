@@ -12,6 +12,7 @@ type config struct {
 	Port       string `toml:"port"`
 	CookieHost string `toml:"cookie_host"`
 	ListenHost string `toml:"listen_host"`
+	FileDir    string `toml:"file_dir"`
 
 	LDAPKey    string `toml:"LDAP_Key"`
 	LDAPHost   string `toml:"LDAP_Host"`
@@ -20,7 +21,7 @@ type config struct {
 }
 
 func loadConfig() error {
-	confRead, err := ioutil.ReadFile("settings.conf")
+	confRead, err := ioutil.ReadFile("/etc/unfail2ban/settings.conf")
 	if err != nil {
 		return fmt.Errorf("Failed to read config file: %v", err)
 	}

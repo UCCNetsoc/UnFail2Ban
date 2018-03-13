@@ -26,9 +26,9 @@ var (
 )
 
 var (
-	tableTemplate  = template.Must(template.ParseFiles("static/main.html", "static/table.html"))
-	formTemplate   = template.Must(template.ParseFiles("static/main.html", "static/form.html"))
-	noauthTemplate = template.Must(template.ParseFiles("static/main.html", "static/noauth.html"))
+	tableTemplate  = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/table.html"))
+	formTemplate   = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/form.html"))
+	noauthTemplate = template.Must(template.ParseFiles(conf.FileDir+"static/main.html", conf.FileDir+"static/noauth.html"))
 )
 
 func init() {
@@ -225,7 +225,7 @@ func main() {
 
 	r.Post("/login", login)
 
-	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	r.Mount("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(conf.FileDir+"static/"))))
 	if err := loadConfig(); err != nil {
 		errorLog.Fatalf("Failed to load configuration: %v", err)
 	}
