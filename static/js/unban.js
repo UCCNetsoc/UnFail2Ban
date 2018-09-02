@@ -6,22 +6,21 @@
         }
     }
     function submitted(event) {
+        event.preventDefault();
         let root = event.srcElement.parentElement.parentElement;
         let ipAddr = document.querySelectorAll('.row')[root.rowIndex - 1].querySelectorAll('td')[4].innerHTML;
-        event.preventDefault();
-        let request = new XMLHttpRequest();
+        const request = new XMLHttpRequest();
         request.onreadystatechange = () => {
-            if (request.readyState === 4) {
-                if (request.status === 200) {
-                    window.alert(ipAddr + " has been unbanned.");
-                    location.reload();
-                }
-                else {
-                    window.alert("Uh oh! Something didnt go right :/");
-                }
+            if (request.readyState !== 4) {
+                return;
+            }
+            if (request.status === 200) {
+                // switch from alerts :)
+                window.alert(ipAddr + " has been unbanned.");
+                location.reload();
             }
             else {
-                return;
+                window.alert("Uh oh! Something didnt go right :/");
             }
         };
         request.open('DELETE', 'unban?ip=' + ipAddr, true);

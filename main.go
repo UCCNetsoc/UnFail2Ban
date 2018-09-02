@@ -32,8 +32,13 @@ var (
 )
 
 func init() {
+	infoLog = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+	errorLog = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
+
+	infoLog.Println("Loading config...")
+
 	if err := loadConfig(); err != nil {
-		errorLog.Fatalf("Failed to load configuration: %v", err)
+		errorLog.Fatalf("%v", err)
 	}
 
 	store.Options = &sessions.Options{
@@ -51,6 +56,7 @@ func init() {
 
 func list(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	
 	data := struct {
 		Data tableData
 		IP   string
@@ -212,9 +218,6 @@ func notAuthorized(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	infoLog = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
-	errorLog = log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime)
-
 	infoLog.Println("Starting server...")
 	infoLog.Println("Initializing server...")
 
@@ -238,6 +241,6 @@ func main() {
 	infoLog.Println("Fail2Ban jail set to " + conf.Jail)
 	infoLog.Println("Listening port set to " + conf.Port)
 
-	fmt.Println(fmt.Sprintf("Server started..\nListening on http://%s:%s", conf.ListenHost, conf.Port))
+	infoLog.Println(fmt.Sprintf("Server started..\nListening on http://%s:%s", conf.ListenHost, conf.Port))
 	errorLog.Fatalln(http.ListenAndServe(conf.ListenHost+":"+conf.Port, context.ClearHandler(r)))
 }

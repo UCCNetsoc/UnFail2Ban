@@ -1,30 +1,32 @@
 (function() {
-    document.addEventListener('DOMContentLoaded', init, false);
-
-    function init() {
-        for(let e of document.querySelectorAll('.input')) {
-            e.addEventListener('click', submitted)
-        }
+  document.addEventListener('DOMContentLoaded', init, false);
+  
+  function init() {
+    for(let e of document.querySelectorAll('.input')) {
+      e.addEventListener('click', submitted)
     }
+  }
+  
+  function submitted(event: MouseEvent) {
+    event.preventDefault()
     
-    function submitted(event: MouseEvent) {
-        let root = event.srcElement.parentElement.parentElement as HTMLTableRowElement
-        let ipAddr = document.querySelectorAll('.row')[root.rowIndex-1].querySelectorAll('td')[4].innerHTML
-        
-        event.preventDefault()
-
-        let request = new XMLHttpRequest()
-        request.onreadystatechange = () => {
-            if(request.readyState === 4) {
-                if(request.status === 200) {
-                    window.alert(ipAddr + " has been unbanned.")
-                    location.reload()
-                } else {
-                    window.alert("Uh oh! Something didnt go right :/")              
-                }
-            } else { return }
-        }
-        request.open('DELETE', 'unban?ip=' + ipAddr, true)
-        request.send()
+    let root = event.srcElement.parentElement.parentElement as HTMLTableRowElement
+    let ipAddr = document.querySelectorAll('.row')[root.rowIndex-1].querySelectorAll('td')[4].innerHTML
+    
+    const request = new XMLHttpRequest()
+    request.onreadystatechange = () => {
+      if(request.readyState !== 4) {
+        return
+      }
+      if(request.status === 200) {
+        // switch from alerts :)
+        window.alert(ipAddr + " has been unbanned.")
+        location.reload()
+      } else {
+        window.alert("Uh oh! Something didnt go right :/")              
+      }
     }
+    request.open('DELETE', 'unban?ip=' + ipAddr, true)
+    request.send()
+  }
 }());

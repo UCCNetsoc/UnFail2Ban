@@ -29,6 +29,8 @@ type tableData struct {
 	Rows     []row
 }
 
+// The majority of this function will change once we have fail2rest
+// We also need to display an error client side if we get an error here
 func renderTable() (tableData tableData) {
 	var rateLimited bool
 
@@ -42,18 +44,14 @@ func renderTable() (tableData tableData) {
 		return
 	}
 
-	rows := strings.Split(string(chainData), "\n")[2:]
-
-	rows = filter(rows, func(s string) bool {
+	rows := filter(strings.Split(string(chainData), "\n")[2:], func(s string) bool {
 		return strings.HasPrefix(s, "REJECT") || strings.HasPrefix(s, "DROP")
 	})
 
-	rules := func() (ret [][]string) {
-		for _, j := range rows {
-			ret = append(ret, strings.Fields(j))
-		}
-		return
-	}()
+	rules := make([][]string, len(rows))
+	for i, j := range rows {
+		rules[i] = strings.Fields(j)
+	}
 
 	for _, rule := range rules {
 		var row row
@@ -85,6 +83,7 @@ func renderTable() (tableData tableData) {
 	return
 }
 
+// TODO handle errors would be technically good here
 func getIPInfo(url string) ([4]string, bool) {
 	resp, err := http.Get("http://ip-api.com/json/" + url)
 	if err != nil {

@@ -11,6 +11,7 @@ type config struct {
 	Jail       string `toml:"jail"`
 	Port       string `toml:"port"`
 	CookieHost string `toml:"cookie_host"`
+	// We can remove this once we move to docker.
 	ListenHost string `toml:"listen_host"`
 	FileDir    string `toml:"file_dir"`
 
@@ -20,6 +21,7 @@ type config struct {
 	LDAPBaseDN string `toml:"LDAP_BaseDN"`
 }
 
+// TODO selectively if some/all/any are empty
 func loadConfig() error {
 	confRead, err := ioutil.ReadFile("/etc/unfail2ban/settings.conf")
 	if err != nil {
